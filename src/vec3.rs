@@ -155,6 +155,15 @@ pub fn unit_vector(v: Vec3) -> Vec3 {
     v / v.length()
 }
 
+pub fn random_in_unit_disk() -> Vec3 {
+    loop {
+        let p = Vec3::new(random_f64_range(-1.0, 1.0), random_f64_range(-1.0, 1.0), 0.0);
+        if p.length_squared() < 1.0 {
+            return p;
+        }
+    }
+}
+
 pub fn random_unit_vector() -> Vec3 {
     loop {
         let p = Vec3::random_range(-1.0, 1.0);
@@ -176,4 +185,11 @@ pub fn random_on_hemisphere(&normal: &Vec3) -> Vec3 {
 
 pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
     v - n * (2.0 * dot(v, n))
+}
+
+pub fn refract(uv: Vec3, n: Vec3, etai_over_etat: f64) -> Vec3 {
+    let cos_theta = dot(-uv, n).min(1.0);
+    let r_out_perp = (uv + n * cos_theta) * etai_over_etat;
+    let r_out_parallel = n * -((1.0 - r_out_perp.length_squared()).abs().sqrt());
+    r_out_perp + r_out_parallel
 }
