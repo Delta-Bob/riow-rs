@@ -3,6 +3,7 @@ use crate::ray::Ray;
 use crate::hittable::HitRecord;
 use crate::color::Color;
 use crate::vec3::{random_unit_vector, reflect, unit_vector, dot, refract, Vec3};
+use crate::texture::Texture;
 
 pub trait Material: Send + Sync {
     fn scatter(
@@ -17,12 +18,16 @@ pub trait Material: Send + Sync {
 }
 
 pub struct Lambertian {
-    albedo: Color,
+    tex: Box<dyn Texture>,
 }
 
 impl Lambertian {
     pub fn new(albedo: Color) -> Lambertian {
-        Lambertian { albedo }
+        Lambertian { tex: Box::new(crate::texture::SolidColor::new(albedo)) }
+    }
+
+    pub fn from_texture(tex: Box<dyn Texture>) -> Lambertian {
+        Lambertian { tex  }
     }
 }
 
@@ -41,7 +46,7 @@ impl Material for Lambertian {
         }
 
         *scattered = Ray::new_with_time(rec.p, scatter_direction, r_in.time());
-        *attenuation = self.albedo;
+        *attenuation = self.tex.value(0.0, 0.0, rec.p);
         true
     }
 }

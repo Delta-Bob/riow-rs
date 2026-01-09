@@ -10,6 +10,7 @@ mod camera;
 mod material;
 mod aabb;
 mod bvh;
+mod texture;
  
 use camera::Camera;
 use hittable_list::HittableList;
@@ -25,8 +26,15 @@ fn main() {
     // World
     let mut world = HittableList::new();
 
-    let ground_material = Arc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
-    world.add(Box::new(Sphere::new(Point3::new(0.0, -1000.0, 0.0), 1000.0, Some(ground_material))));
+    let checker = Arc::new(Lambertian::from_texture(
+        Box::new(texture::CheckerTexture::from_colors(
+            0.32,
+            Color::new(0.2, 0.3, 0.1),
+            Color::new(0.9, 0.9, 0.9),
+        ))
+    ));
+
+    world.add(Box::new(Sphere::new(Point3::new(0.0, -1000.0, 0.0), 1000.0, Some(checker))));
 
     for a in -11..11 {
         for b in -11..11 {
