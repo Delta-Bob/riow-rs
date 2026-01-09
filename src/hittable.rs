@@ -2,6 +2,8 @@ use crate::interval::*;
 use crate::ray::*;
 use crate::vec3::*;
 use crate::material::Material;
+use crate::aabb::AABB;
+
 use std::sync::Arc;
 
 #[derive(Clone, Default)]
@@ -34,6 +36,7 @@ impl HitRecord {
     }
 }
 
-pub trait Hittable {
+pub trait Hittable: Send + Sync {
     fn hit(&self, ray: &Ray, ray_t: Interval, rec: &mut HitRecord) -> bool;
+    fn bounding_box(&self) -> AABB;
 }

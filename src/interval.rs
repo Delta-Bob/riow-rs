@@ -1,8 +1,15 @@
 use crate::common;
 
+#[derive(Clone, Copy)]
 pub struct Interval {
     pub min: f64,
     pub max: f64,
+}
+
+impl Default for Interval {
+    fn default() -> Self {
+        Self::empty()
+    }
 }
 
 impl Interval {
@@ -17,6 +24,13 @@ impl Interval {
         Self {
             min: -common::INFINITY,
             max: common::INFINITY,
+        }
+    }
+
+    pub fn from_intervals(a: &Interval, b: &Interval) -> Self {
+        Self {
+            min: if a.min <= b.min { a.min } else { b.min },
+            max: if a.max >= b.max { a.max } else { b.max },
         }
     }
 
@@ -38,5 +52,13 @@ impl Interval {
         if x < self.min {return self.min};
         if x > self.max {return self.max};
         return x;
+    }
+
+    pub fn expand(&self, delta: f64) -> Self {
+        let padding = delta / 2.0;
+        Self {
+            min: self.min - padding,
+            max: self.max + padding,
+        }
     }
 }

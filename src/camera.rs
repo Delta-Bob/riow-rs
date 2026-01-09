@@ -3,9 +3,11 @@ use crate::hittable::{HitRecord, Hittable};
 use crate::interval::{self, Interval};
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3, random_on_hemisphere, random_unit_vector, unit_vector, cross, dot};
-use crate::common::{self, degrees_to_radians};
-use std::f64::INFINITY;
+use crate::common::{self, degrees_to_radians, INFINITY};
+
 use std::io::Write;
+use rayon::prelude::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub struct Camera {
     pub aspect_ratio: f64,
@@ -64,27 +66,41 @@ impl Camera {
         camera
     }
 
-    pub fn render(&self, world: &dyn Hittable) {
+    pub fn render(&self, world: &(dyn Hittable + Sync)) {
         let stdout = std::io::stdout();
         let mut handle = stdout.lock();
 
         writeln!(handle, "P3\n{} {}\n255", self.image_width, self.image_height).unwrap();
 
-        for j in 0..self.image_height {
-            eprint!("\rScanlines remaining: {} ", self.image_height - j);
-            let _ = std::io::stderr().flush();
+        let lines_remaining = AtomicUsize::new(self.image_height as usize);
+
+        let pixel_rows: Vec<Vec<Color>> = (0..self.image_height).into_par_iter().map(|j| {
+            // Print progress (Atomic decrement is thread-safe)
+            let remaining = lines_remaining.fetch_sub(1, Ordering::Relaxed);
+
+            eprint!("\rScanlines remaining: {}   ", remaining);
+
+            let mut row_pixels = Vec::with_capacity(self.image_width as usize);
 
             for i in 0..self.image_width {
                 let mut pixel_color = Color::new(0.0, 0.0, 0.0);
                 for _ in 0..self.samples_per_pixel {
                     let r = self.get_ray(i, j);
-                    pixel_color += self.ray_color(&r, self.max_depth,world);
+                    pixel_color += self.ray_color(&r, self.max_depth, world);
                 }
-                crate::color::write_color(&mut handle, pixel_color * self.pixel_samples_scale);
+                // Instead of writing to file, we push to a temporary vector
+                row_pixels.push(pixel_color * self.pixel_samples_scale);
             }
-        }
+            row_pixels
+        }).collect(); // This collects all threads' results back into order
 
         eprintln!("\rDone.                 ");
+
+        for row in pixel_rows {
+            for pixel in row {
+                crate::color::write_color(&mut handle, pixel);
+            }
+        }
     }
 
     fn initialize(&mut self) {
@@ -141,8 +157,9 @@ impl Camera {
         };
 
         let ray_direction = pixel_sample - ray_origin;
+        let ray_time = common::random_f64_range(0.0, 1.0);
 
-        Ray::new(ray_origin, ray_direction)
+        Ray::new_with_time(ray_origin, ray_direction, ray_time)
     }
 
     fn sample_square(&self) -> Vec3 {
