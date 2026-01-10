@@ -1,5 +1,9 @@
+use rand::rand_core::le;
+
 use crate::color::Color;
-use crate::vec3::{Vec3, Point3};
+use crate::interval::Interval;
+use crate::vec3::{Point3, Vec3, reflect};
+use crate::rtw_stb_image::RtwImage;
 
 pub trait Texture: Send + Sync {
     fn value(&self, u: f64, v: f64, p: Vec3) -> Color;
@@ -38,7 +42,7 @@ impl CheckerTexture {
 
     pub fn from_colors(scale: f64, c1: Color , c2: Color) -> Self {
         Self {
-            inv_scale: scale,
+            inv_scale: 1.0 / scale,
             even: Box::new(SolidColor::new(c1)),
             odd: Box::new(SolidColor::new(c2)),
         }
@@ -58,5 +62,35 @@ impl Texture for CheckerTexture {
         } else {
             self.odd.value(u, v, p)
         } 
+    }
+}
+
+pub struct ImageTexture {
+    image: RtwImage,
+}
+
+impl ImageTexture {
+    pub fn new(filename: &str) -> Self {
+        Self { image: RtwImage::load(filename) }
+    }
+}
+
+impl Texture for ImageTexture {
+    fn value(&self, u: f64, v: f64, _p: Vec3) -> Color {
+        if self.image.height() <= 0 {
+            return Color::new(0.0, 1.0, 1.0)
+        }
+
+        let u = Interval::new(0.0, 1.0).clamp(u);
+        let v = 1.0 - Interval::new(0.0, 1.0).clamp(v);
+
+        let i = (u * self.image.width() as f64) as i32;
+        let j = (v * self.image.height() as f64) as i32;
+        let pixel = self.image.pixel_data(i, j);
+
+        let color_scale = 1.0 / 255.0;
+        Color::new(color_scale * pixel[0] as f64,
+                   color_scale * pixel[1] as f64,
+                   color_scale * pixel[2] as f64)
     }
 }

@@ -46,7 +46,8 @@ impl Material for Lambertian {
         }
 
         *scattered = Ray::new_with_time(rec.p, scatter_direction, r_in.time());
-        *attenuation = self.tex.value(0.0, 0.0, rec.p);
+        // Use the interpolated surface coordinates so textures map correctly.
+        *attenuation = self.tex.value(rec.u, rec.v, rec.p);
         true
     }
 }

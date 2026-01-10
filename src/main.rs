@@ -11,18 +11,19 @@ mod material;
 mod aabb;
 mod bvh;
 mod texture;
+mod rtw_stb_image;
  
 use camera::Camera;
 use hittable_list::HittableList;
 use sphere::Sphere;
-use vec3::Point3;
+use vec3::{Point3, Vec3};
 use material::*;
 use color::Color;
 
 use std::sync::Arc;
 use std::time::Instant;
 
-fn main() {
+fn bouncing_spheres() {
     // World
     let mut world = HittableList::new();
 
@@ -81,7 +82,7 @@ fn main() {
     // Camera settings
     let aspect_ratio = 16.0 / 9.0;
     let image_width = 400;
-    let samples_per_pixel = 500;
+    let samples_per_pixel = 100;
     let max_depth = 50;
 
     let vfov = 20.0;
@@ -112,4 +113,104 @@ fn main() {
     camera.render(&world);
     let duration = start.elapsed();
     eprintln!("Render time: {:?}", duration);
+}
+
+fn checkered_spheres() {
+    let mut world = HittableList::new();
+
+    let checker = Arc::new(Lambertian::from_texture(
+        Box::new(texture::CheckerTexture::from_colors(
+            0.32,
+            Color::new(0.2, 0.3, 0.1),
+            Color::new(0.9, 0.9, 0.9),
+        ))
+    ));
+
+    world.add(Box::new(Sphere::new(Point3::new(0.0, -10.0, 0.0), 10.0, Some(checker.clone()))));
+    world.add(Box::new(Sphere::new(Point3::new(0.0, 10.0, 0.0), 10.0, Some(checker))));
+
+    let world = bvh::BvhNode::new(world);
+
+        // Camera settings
+    let aspect_ratio = 16.0 / 9.0;
+    let image_width = 400;
+    let samples_per_pixel = 100;
+    let max_depth = 50;
+
+    let vfov = 20.0;
+    
+    let lookfrom = Point3::new(13.0, 2.0, 3.0);
+    let lookat = Point3::new(0.0, 0.0, 0.0);
+    let vup = vec3::Vec3::new(0.0, 1.0, 0.0);
+
+    let defocus_angle = 0.0;
+    let focus_dist = 10.0;
+
+    // Camera
+    let camera = Camera::new(
+        aspect_ratio,
+        image_width,
+        samples_per_pixel,
+        max_depth,
+        vfov,
+        lookfrom,
+        lookat,
+        vup,
+        defocus_angle,
+        focus_dist,
+    );
+
+    // Render
+    let start = Instant::now();
+    camera.render(&world);
+    let duration = start.elapsed();
+    eprintln!("Render time: {:?}", duration);
+}
+
+fn earth() {
+    let mut world = HittableList::new();
+
+    let earth_texture = texture::ImageTexture::new("earthmap.jpg");
+    let earth_surface = Arc::new(Lambertian::from_texture(Box::new(earth_texture)));
+    let globe = Sphere::new(Point3::new(0.0, 0.0, 0.0), 2.0, Some(earth_surface));
+
+    world.add(Box::new(globe));
+
+    let world = bvh::BvhNode::new(world);
+
+    let aspect_ratio      = 16.0 / 9.0;
+    let image_width       = 400;
+    let samples_per_pixel = 100;
+    let max_depth         = 50;
+
+    let vfov     = 20.0;
+    let lookfrom = Point3::new(0.0, 0.0, 12.0);
+    let lookat   = Point3::new(0.0, 0.0, 0.0);
+    let vup      = Vec3::new(0.0, 1.0, 0.0);
+
+    let defocus_angle = 0.0;
+
+    let camera = Camera::new(
+        aspect_ratio,
+        image_width,
+        samples_per_pixel,
+        max_depth,
+        vfov,
+        lookfrom,
+        lookat,
+        vup,
+        defocus_angle,
+        10.0,
+    );
+
+    camera.render(&world);    
+}
+
+fn main() {
+    match 3 {
+        1 => bouncing_spheres(),
+        2 => checkered_spheres(),
+        3 => earth(),
+        _ => unreachable!(),
+    }
 }

@@ -71,6 +71,10 @@ impl Hittable for Sphere {
         rec.set_face_normal(r, outward_normal);
         rec.mat = self.mat.clone();
 
+        let (u, v) = get_sphere_uv(&outward_normal);
+        rec.u = u;
+        rec.v = v;
+
         true
     }
 
@@ -86,4 +90,13 @@ impl Hittable for Sphere {
 
         AABB::from_boxes(&box0, &box1)
     }
+}
+
+fn get_sphere_uv(p: &Point3) -> (f64, f64) {
+    let theta = f64::acos(-p.y());
+    let phi = f64::atan2(-p.z(), p.x()) + std::f64::consts::PI;
+
+    let u = phi / (2.0 * std::f64::consts::PI);
+    let v = theta / std::f64::consts::PI;
+    (u, v)
 }
