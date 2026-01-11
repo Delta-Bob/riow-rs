@@ -12,6 +12,7 @@ mod aabb;
 mod bvh;
 mod texture;
 mod rtw_stb_image;
+mod perlin;
  
 use camera::Camera;
 use hittable_list::HittableList;
@@ -109,10 +110,7 @@ fn bouncing_spheres() {
     );
 
     // Render
-    let start = Instant::now();
     camera.render(&world);
-    let duration = start.elapsed();
-    eprintln!("Render time: {:?}", duration);
 }
 
 fn checkered_spheres() {
@@ -133,8 +131,8 @@ fn checkered_spheres() {
 
         // Camera settings
     let aspect_ratio = 16.0 / 9.0;
-    let image_width = 400;
-    let samples_per_pixel = 100;
+    let image_width = 1920;
+    let samples_per_pixel = 500;
     let max_depth = 50;
 
     let vfov = 20.0;
@@ -206,11 +204,57 @@ fn earth() {
     camera.render(&world);    
 }
 
+fn perlin_spheres() {
+    let mut world = HittableList::new();
+
+    let pertext = Arc::new(Lambertian::from_texture(
+        Box::new(texture::NoiseTexture::new())
+    ));
+    
+    world.add(Box::new(Sphere::new(Point3::new(0.0, -1000.0, 0.0), 1000.0, Some(pertext.clone()))));
+    world.add(Box::new(Sphere::new(Point3::new(0.0, 2.0, 0.0), 2.0, Some(pertext))));
+
+    let world = bvh::BvhNode::new(world);
+
+    let aspect_ratio = 16.0 / 9.0;
+    let image_width = 3840;
+    let samples_per_pixel = 100;
+    let max_depth = 50;
+
+    let vfov = 20.0;
+    let lookfrom = Point3::new(13.0, 2.0, 3.0);
+    let lookat = Point3::new(0.0, 0.0, 0.0);
+    let vup = Vec3::new(0.0, 1.0, 0.0);
+
+    let defocus_angle = 0.0;
+
+    let camera = Camera::new(
+        aspect_ratio,
+        image_width,
+        samples_per_pixel,
+        max_depth,
+        vfov,
+        lookfrom,
+        lookat,
+        vup,
+        defocus_angle,
+        10.0,
+    );
+
+    camera.render(&world);
+}
+
 fn main() {
-    match 3 {
+    let start = Instant::now();
+
+    match 4 {
         1 => bouncing_spheres(),
         2 => checkered_spheres(),
         3 => earth(),
+        4 => perlin_spheres(),
         _ => unreachable!(),
     }
+
+    let duration = start.elapsed();
+    eprintln!("Render time: {:?}", duration);
 }
