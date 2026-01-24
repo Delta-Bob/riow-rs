@@ -35,8 +35,10 @@ impl AABB {
         }
     }
 
-    pub fn new(x: Interval, y: Interval, z: Interval) -> Self {
-        Self { x, y, z }
+    pub fn new(mut x: Interval, mut y: Interval, mut z: Interval) -> Self {
+        let mut aabb = Self { x, y, z };
+        aabb.pad_to_minimums();
+        aabb
     }
 
     pub fn new_point3(a: Point3, b: Point3) -> Self {
@@ -109,6 +111,13 @@ impl AABB {
         } else {
             2
         }
+    }
+
+    fn pad_to_minimums(&mut self) {
+        let delta = 0.0001;
+        if self.x.size() < delta { self.x = self.x.expand(delta); }
+        if self.y.size() < delta { self.y = self.y.expand(delta); }
+        if self.z.size() < delta { self.z = self.z.expand(delta); }
     }
 }
 

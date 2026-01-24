@@ -1,4 +1,5 @@
 mod color;
+mod triangle;
 mod common;
 mod hittable;
 mod hittable_list;
@@ -13,6 +14,7 @@ mod bvh;
 mod texture;
 mod rtw_stb_image;
 mod perlin;
+mod quad;
  
 use camera::Camera;
 use hittable_list::HittableList;
@@ -20,9 +22,10 @@ use sphere::Sphere;
 use vec3::{Point3, Vec3};
 use material::*;
 use color::Color;
-
 use std::sync::Arc;
 use std::time::Instant;
+use crate::quad::Quad;
+use crate::triangle::Triangle;
 
 fn bouncing_spheres() {
     // World
@@ -207,9 +210,7 @@ fn earth() {
 fn perlin_spheres() {
     let mut world = HittableList::new();
 
-    let pertext = Arc::new(Lambertian::from_texture(
-        Box::new(texture::NoiseTexture::new())
-    ));
+    let pertext = Arc::new(Lambertian::from_texture(Box::new(texture::NoiseTexture::new(4.0))));
     
     world.add(Box::new(Sphere::new(Point3::new(0.0, -1000.0, 0.0), 1000.0, Some(pertext.clone()))));
     world.add(Box::new(Sphere::new(Point3::new(0.0, 2.0, 0.0), 2.0, Some(pertext))));
@@ -217,7 +218,7 @@ fn perlin_spheres() {
     let world = bvh::BvhNode::new(world);
 
     let aspect_ratio = 16.0 / 9.0;
-    let image_width = 3840;
+    let image_width = 400;
     let samples_per_pixel = 100;
     let max_depth = 50;
 
@@ -244,14 +245,115 @@ fn perlin_spheres() {
     camera.render(&world);
 }
 
+fn quads() {
+    let mut world = HittableList::new();
+
+    let left_red = Arc::new(Lambertian::new(Color::new(1.0, 0.2, 0.2)));
+    let back_green = Arc::new(Lambertian::new(Color::new(0.2, 1.0, 0.2)));
+    let right_blue = Arc::new(Lambertian::new(Color::new(0.2, 0.2, 1.0)));
+    let upper_orange = Arc::new(Lambertian::new(Color::new(1.0, 0.5, 0.0)));
+    let lower_teal = Arc::new(Lambertian::new(Color::new(0.2, 0.8, 0.8)));
+
+    world.add(Box::new(Quad::new(Point3::new(-3.0, -2.0, 5.0), Vec3::new(0.0, 0.0, -4.0), Vec3::new(0.0, 4.0, 0.0), Some(left_red))));
+    world.add(Box::new(Quad::new(Point3::new(-2.0, -2.0, 0.0), Vec3::new(4.0, 0.0, 0.0), Vec3::new(0.0, 4.0, 0.0), Some(back_green))));
+    world.add(Box::new(Quad::new(Point3::new(3.0, -2.0, 1.0), Vec3::new(0.0, 0.0, 4.0), Vec3::new(0.0, 4.0, 0.0), Some(right_blue))));
+    world.add(Box::new(Quad::new(Point3::new(-2.0, 3.0, 1.0), Vec3::new(4.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 4.0), Some(upper_orange))));
+    world.add(Box::new(Quad::new(Point3::new(-2.0, -3.0, 5.0), Vec3::new(4.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -4.0), Some(lower_teal))));
+
+    let world = bvh::BvhNode::new(world);
+
+    let aspect_ratio = 1.0;
+    let image_width = 400;
+    let samples_per_pixel = 100;
+    let max_depth = 50;
+
+    let vfov = 80.0;
+    let lookfrom = Point3::new(0.0, 0.0, 9.0);
+    let lookat = Point3::new(0.0, 0.0, 0.0);
+    let vup = Vec3::new(0.0, 1.0, 0.0);
+
+    let defocus_angle = 0.0;
+
+    let camera = Camera::new(
+        aspect_ratio,
+        image_width,
+        samples_per_pixel,
+        max_depth,
+        vfov,
+        lookfrom,
+        lookat,
+        vup,
+        defocus_angle,
+        10.0,
+    );
+
+    camera.render(&world);
+}
+fn triangles() {
+    // Build a coherent triangular demo: a colored tetrahedron above a ground plane.
+    let mut world = HittableList::new();
+
+    // Ground (large sphere acting as a ground plane)
+    let ground_mat = Arc::new(Lambertian::new(Color::new(0.8, 0.8, 0.8)));
+    world.add(Box::new(Sphere::new(Point3::new(0.0, -100.5, 0.0), 100.0, Some(ground_mat))));
+
+    // Face materials
+    let red = Arc::new(Lambertian::new(Color::new(0.85, 0.15, 0.15)));
+    let green = Arc::new(Lambertian::new(Color::new(0.15, 0.85, 0.15)));
+    let blue = Arc::new(Lambertian::new(Color::new(0.15, 0.15, 0.85)));
+    let yellow = Arc::new(Lambertian::new(Color::new(0.9, 0.85, 0.2)));
+
+    // Tetrahedron vertices (centered near the origin)
+    let v0 = Point3::new(0.0, 1.0, 0.0);
+    let v1 = Point3::new(-1.0, 0.0, 1.0);
+    let v2 = Point3::new(1.0, 0.0, 1.0);
+    let v3 = Point3::new(0.0, 0.0, -1.0);
+
+    // Three side faces and a base face
+    world.add(Box::new(Triangle::new(v0, v1 - v0, v2 - v0, Some(red))));
+    world.add(Box::new(Triangle::new(v0, v2 - v0, v3 - v0, Some(green))));
+    world.add(Box::new(Triangle::new(v0, v3 - v0, v1 - v0, Some(blue))));
+    world.add(Box::new(Triangle::new(v1, v3 - v1, v2 - v1, Some(yellow))));
+
+    let world = bvh::BvhNode::new(world);
+
+    // Camera: angle and distance chosen to frame the tetrahedron nicely
+    let lookfrom = Point3::new(3.0, 2.0, 5.0);
+    let lookat = Point3::new(0.0, 0.3, 0.0);
+    let aspect_ratio = 16.0 / 9.0;
+    let image_width = 400;
+    let samples_per_pixel = 200;
+    let max_depth = 50;
+    let vfov = 40.0;
+    let vup = Vec3::new(0.0, 1.0, 0.0);
+    let defocus_angle = 0.0;
+    let focus_dist = (lookfrom - lookat).length();
+
+    let camera = Camera::new(
+        aspect_ratio,
+        image_width,
+        samples_per_pixel,
+        max_depth,
+        vfov,
+        lookfrom,
+        lookat,
+        vup,
+        defocus_angle,
+        focus_dist,
+    );
+
+    camera.render(&world);
+}
 fn main() {
     let start = Instant::now();
 
-    match 4 {
+    match 6 {
         1 => bouncing_spheres(),
         2 => checkered_spheres(),
         3 => earth(),
         4 => perlin_spheres(),
+        5 => quads(),
+        6 => triangles(),
         _ => unreachable!(),
     }
 

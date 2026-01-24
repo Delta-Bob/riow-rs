@@ -193,3 +193,7 @@ pub fn refract(uv: Vec3, n: Vec3, etai_over_etat: f64) -> Vec3 {
     let r_out_parallel = n * -((1.0 - r_out_perp.length_squared()).abs().sqrt());
     r_out_perp + r_out_parallel
 }
+
+pub fn random(min: f64, max: f64) -> Vec3 {
+    Vec3::new(random_f64_range(min, max), random_f64_range(min, max), random_f64_range(min, max))
+}
