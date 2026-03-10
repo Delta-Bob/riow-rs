@@ -8,12 +8,16 @@ use crate::texture::Texture;
 pub trait Material: Send + Sync {
     fn scatter(
         &self,
-        r_in: &Ray,
-        rec: &HitRecord,
-        attenuation: &mut Color,
-        scattered: &mut Ray,
+        _r_in: &Ray,
+        _rec: &HitRecord,
+        _attenuation: &mut Color,
+        _scattered: &mut Ray,
     ) -> bool {
         false
+    }
+
+    fn emitted(&self, _u: f64, _v: f64, _p: Vec3) -> Color {
+        Color::new(0.0, 0.0, 0.0)
     }
 }
 
@@ -126,6 +130,68 @@ impl Material for Dielectric {
 
         *scattered = Ray::new_with_time(rec.p, direction, r_in.time());
 
+        true
+    }
+}
+
+pub struct DiffuseLight {
+    tex: Box<dyn Texture>,
+}
+
+impl DiffuseLight {
+    pub fn new(emit: Color) -> Self {
+        Self {
+            tex: Box::new(crate::texture::SolidColor::new(emit)),
+        }
+    }
+
+    pub fn _from_texture(tex: Box<dyn Texture>) -> Self {
+        Self { tex }
+    }
+}
+
+impl Material for DiffuseLight {
+    fn scatter(
+        &self,
+        _r_in: &Ray,
+        _rec: &HitRecord,
+        _attenuation: &mut Color,
+        _scattered: &mut Ray,
+    ) -> bool {
+        false
+    }
+
+    fn emitted(&self, u: f64, v: f64, p: Vec3) -> Color {
+        self.tex.value(u, v, p)
+    }
+}
+
+pub struct Isotropic {
+    tex: Box<dyn Texture>,
+}
+
+impl Isotropic {
+    pub fn new(albedo: Color) -> Self {
+        Self {
+            tex: Box::new(crate::texture::SolidColor::new(albedo)),
+        }
+    }
+
+    pub fn from_texture(tex: Box<dyn Texture>) -> Self {
+        Self { tex }
+    }
+}
+
+impl Material for Isotropic {
+    fn scatter(
+        &self,
+        r_in: &Ray,
+        rec: &HitRecord,
+        attenuation: &mut Color,
+        scattered: &mut Ray,
+    ) -> bool {
+        *scattered = Ray::new_with_time(rec.p, random_unit_vector(), r_in.time());
+        *attenuation = self.tex.value(rec.u, rec.v, rec.p);
         true
     }
 }

@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use crate::vec3::Vec3;
-use crate::interval::{self, Interval};
+use crate::interval::{self};
 
 pub type Color = Vec3;
 

@@ -20,7 +20,7 @@ impl Interval {
         }
     }
 
-    pub fn universe() -> Self {
+    pub fn _universe() -> Self {
         Self {
             min: -common::INFINITY,
             max: common::INFINITY,
@@ -60,5 +60,19 @@ impl Interval {
             min: self.min - padding,
             max: self.max + padding,
         }
+    }
+}
+
+impl std::ops::Add<f64> for Interval {
+    type Output = Interval;
+    fn add(self, displacement: f64) -> Interval {
+        Interval::new(self.min + displacement, self.max + displacement)
+    }
+}
+
+impl std::ops::Add<Interval> for f64 {
+    type Output = Interval;
+    fn add(self, ival: Interval) -> Interval {
+        ival + self
     }
 }

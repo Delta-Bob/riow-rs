@@ -15,7 +15,7 @@ pub struct BvhNode {
 impl BvhNode {
     pub fn new(list: HittableList) -> Self {
         let len = list.objects.len();
-        let mut objects: Vec<Arc<dyn Hittable>> = list.objects
+        let objects: Vec<Arc<dyn Hittable>> = list.objects
             .into_iter()
             .map(|obj| Arc::from(obj))
             .collect();
@@ -42,9 +42,7 @@ impl BvhNode {
         };
 
         objects[start..end].sort_by(comparator);
-
-        let mut rng = rand::rng();
-
+        
         let object_span = end - start;
 
         if object_span == 1 {

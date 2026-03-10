@@ -1,5 +1,5 @@
 use crate::interval::Interval;
-use crate::vec3::Point3;
+use crate::vec3::{Point3, Vec3};
 use crate::ray::Ray;
 use crate::hittable::Hittable;
 
@@ -27,15 +27,7 @@ impl AABB {
         }
     }
 
-    pub fn universe() -> Self {
-        Self {
-            x: Interval::universe(),
-            y: Interval::universe(),
-            z: Interval::universe(),
-        }
-    }
-
-    pub fn new(mut x: Interval, mut y: Interval, mut z: Interval) -> Self {
+    pub fn new(x: Interval, y: Interval, z: Interval) -> Self {
         let mut aabb = Self { x, y, z };
         aabb.pad_to_minimums();
         aabb
@@ -118,6 +110,20 @@ impl AABB {
         if self.x.size() < delta { self.x = self.x.expand(delta); }
         if self.y.size() < delta { self.y = self.y.expand(delta); }
         if self.z.size() < delta { self.z = self.z.expand(delta); }
+    }
+}
+
+impl std::ops::Add<Vec3> for AABB {
+    type Output = AABB;
+    fn add(self, offset: Vec3) -> AABB {
+        AABB::new(self.x + offset.x(), self.y + offset.y(), self.z + offset.z())
+    }
+}
+
+impl std::ops::Add<AABB> for Vec3 {
+    type Output = AABB;
+    fn add(self, bbox: AABB) -> AABB {
+        bbox + self
     }
 }
 

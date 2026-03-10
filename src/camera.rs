@@ -1,8 +1,8 @@
 use crate::color::Color;
 use crate::hittable::{HitRecord, Hittable};
-use crate::interval::{self, Interval};
+use crate::interval::Interval;
 use crate::ray::Ray;
-use crate::vec3::{Point3, Vec3, random_on_hemisphere, random_unit_vector, unit_vector, cross, dot};
+use crate::vec3::{Point3, Vec3, unit_vector, cross};
 use crate::common::{self, degrees_to_radians, INFINITY};
 
 use std::io::Write;
@@ -14,6 +14,7 @@ pub struct Camera {
     pub image_width: i32,
     pub samples_per_pixel: i32,
     pub max_depth: i32,
+    pub background: Color,
 
     pub vfov: f64,
     pub lookfrom: Point3,
@@ -38,12 +39,13 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(aspect_ratio: f64, image_width: i32, samples_per_pixel: i32, max_depth: i32, vfov: f64, lookfrom: Point3, lookat: Point3, vup: Vec3, defocus_angle: f64, focus_dist: f64) -> Self {
+    pub fn new(aspect_ratio: f64, image_width: i32, samples_per_pixel: i32, max_depth: i32, background: Color, vfov: f64, lookfrom: Point3, lookat: Point3, vup: Vec3, defocus_angle: f64, focus_dist: f64) -> Self {
         let mut camera = Camera {
             aspect_ratio,
             image_width,
             samples_per_pixel,
             max_depth,
+            background,
             vfov,
             lookfrom,
             lookat,
@@ -173,21 +175,20 @@ impl Camera {
 
         let mut rec = HitRecord::new();
 
-        if world.hit(r, Interval { min: 0.001, max: INFINITY }, &mut rec) {
-            if let Some(mat) = &rec.mat {
-                let mut scattered = Ray::new(rec.p, Vec3::new(0.0, 0.0, 0.0));
-                let mut attenuation = Color::new(0.0, 0.0, 0.0);
-                
-                if mat.scatter(r, &rec, &mut attenuation, &mut scattered) {
-                    return attenuation * self.ray_color(&scattered, depth - 1, world);
-                }
-            }
-            return Color::new(0.0, 0.0, 0.0);
+        if !world.hit(r, Interval { min: 0.001, max: INFINITY }, &mut rec) {
+            return self.background;
         }
 
-        let unit_direction = unit_vector(r.direction);
-        let a = 0.5 * (unit_direction.y() + 1.0);
-        Color::new(1.0, 1.0, 1.0) * (1.0 - a) + Color::new(0.5, 0.7, 1.0) * a
+        let mut scattered = Ray::new(Point3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0));
+        let mut attenuation = Color::new(0.0, 0.0, 0.0);
+        let color_from_emission = rec.mat.as_ref().unwrap().emitted(rec.u, rec.v, rec.p);
+
+        if !rec.mat.as_ref().unwrap().scatter(r, &rec, &mut attenuation, &mut scattered) {
+            return color_from_emission;
+        }
+
+        let color_from_scatter = attenuation * self.ray_color(&scattered, depth - 1, world);
+        return color_from_emission + color_from_scatter;
     }
 
     fn defocus_disk_sample(&self) -> Point3 {
