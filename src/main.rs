@@ -496,6 +496,7 @@ fn cornell_box() {
     let white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
     let green = Arc::new(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
     let light = Arc::new(DiffuseLight::new(Color::new(15.0, 15.0, 15.0)));
+    let metal = Arc::new(Metal::new(Vec3::new(1.0, 1.0, 1.0), 10.0));
 
     // Cornell box walls
     world.add(Box::new(Quad::new(
@@ -538,7 +539,7 @@ fn cornell_box() {
     let box1: Arc<dyn hittable::Hittable> = Arc::new(Quad::box_shape(
         Point3::new(0.0, 0.0, 0.0),
         Point3::new(165.0, 330.0, 165.0),
-        Some(white.clone()),
+        Some(metal),
     ));
     let box1 = Arc::new(hittable::RotateY::new(box1, 15.0));
     let box1 = hittable::Translate::new(box1, Vec3::new(265.0, 0.0, 295.0));
@@ -556,9 +557,9 @@ fn cornell_box() {
     let world = bvh::BvhNode::new(world);
 
     let aspect_ratio = 1.0;
-    let image_width = 2560;
-    let samples_per_pixel = 10;
-    let max_depth = 50;
+    let image_width = 720;
+    let samples_per_pixel = 1000;
+    let max_depth = 10;
     let background = Color::new(0.0, 0.0, 0.0);
 
     let vfov = 40.0;
@@ -857,7 +858,7 @@ fn main() {
         7 => simple_light(),
         8 => cornell_smoke(),
         9 => cornell_box(),
-        10 => final_scene(3840, 10, 10),
+        10 => final_scene(720, 10, 10),
         _ => unreachable!(),
     }
 

@@ -1,7 +1,5 @@
-use std::ops::{Neg, Index, IndexMut, AddAssign, MulAssign, DivAssign, Add, Sub, Mul, Div};
 use std::fmt::{Display, Formatter, Result};
-
-use rand::random_range;
+use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub};
 
 use crate::common::{random_f64, random_f64_range};
 
@@ -19,9 +17,15 @@ impl Vec3 {
         Vec3 { e: [e0, e1, e2] }
     }
 
-    pub fn x(&self) -> f64 { self.e[0] }
-    pub fn y(&self) -> f64 { self.e[1] }
-    pub fn z(&self) -> f64 { self.e[2] }
+    pub fn x(&self) -> f64 {
+        self.e[0]
+    }
+    pub fn y(&self) -> f64 {
+        self.e[1]
+    }
+    pub fn z(&self) -> f64 {
+        self.e[2]
+    }
 
     pub fn length(&self) -> f64 {
         self.length_squared().sqrt()
@@ -41,7 +45,11 @@ impl Vec3 {
     }
 
     pub fn random_range(min: f64, max: f64) -> Vec3 {
-        Self::new(random_f64_range(min, max), random_f64_range(min, max), random_f64_range(min, max))
+        Self::new(
+            random_f64_range(min, max),
+            random_f64_range(min, max),
+            random_f64_range(min, max),
+        )
     }
 }
 
@@ -157,7 +165,11 @@ pub fn unit_vector(v: Vec3) -> Vec3 {
 
 pub fn random_in_unit_disk() -> Vec3 {
     loop {
-        let p = Vec3::new(random_f64_range(-1.0, 1.0), random_f64_range(-1.0, 1.0), 0.0);
+        let p = Vec3::new(
+            random_f64_range(-1.0, 1.0),
+            random_f64_range(-1.0, 1.0),
+            0.0,
+        );
         if p.length_squared() < 1.0 {
             return p;
         }
@@ -174,7 +186,7 @@ pub fn random_unit_vector() -> Vec3 {
     }
 }
 
-pub fn random_on_hemisphere(&normal: &Vec3) -> Vec3 {
+pub fn _random_on_hemisphere(&normal: &Vec3) -> Vec3 {
     let on_unit_sphere = random_unit_vector();
     if dot(on_unit_sphere, normal) > 0.0 {
         on_unit_sphere
@@ -195,5 +207,9 @@ pub fn refract(uv: Vec3, n: Vec3, etai_over_etat: f64) -> Vec3 {
 }
 
 pub fn random(min: f64, max: f64) -> Vec3 {
-    Vec3::new(random_f64_range(min, max), random_f64_range(min, max), random_f64_range(min, max))
+    Vec3::new(
+        random_f64_range(min, max),
+        random_f64_range(min, max),
+        random_f64_range(min, max),
+    )
 }

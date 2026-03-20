@@ -1,9 +1,9 @@
-use crate::common::random_f64;
-use crate::ray::Ray;
-use crate::hittable::HitRecord;
 use crate::color::Color;
-use crate::vec3::{random_unit_vector, reflect, unit_vector, dot, refract, Vec3};
+use crate::common::random_f64;
+use crate::hittable::HitRecord;
+use crate::ray::Ray;
 use crate::texture::Texture;
+use crate::vec3::{Vec3, dot, random_unit_vector, reflect, refract, unit_vector};
 
 pub trait Material: Send + Sync {
     fn scatter(
@@ -27,11 +27,13 @@ pub struct Lambertian {
 
 impl Lambertian {
     pub fn new(albedo: Color) -> Lambertian {
-        Lambertian { tex: Box::new(crate::texture::SolidColor::new(albedo)) }
+        Lambertian {
+            tex: Box::new(crate::texture::SolidColor::new(albedo)),
+        }
     }
 
     pub fn from_texture(tex: Box<dyn Texture>) -> Lambertian {
-        Lambertian { tex  }
+        Lambertian { tex }
     }
 }
 
@@ -44,7 +46,7 @@ impl Material for Lambertian {
         scattered: &mut Ray,
     ) -> bool {
         let mut scatter_direction = rec.normal + random_unit_vector();
-        
+
         if scatter_direction.near_zero() {
             scatter_direction = rec.normal;
         }
@@ -63,7 +65,10 @@ pub struct Metal {
 
 impl Metal {
     pub fn new(albedo: Color, fuzz: f64) -> Metal {
-        Metal { albedo, fuzz: if fuzz < 1.0 { fuzz } else { 1.0 } }
+        Metal {
+            albedo,
+            fuzz: if fuzz < 1.0 { fuzz } else { 1.0 },
+        }
     }
 }
 
@@ -79,7 +84,7 @@ impl Material for Metal {
         reflected = unit_vector(reflected) + (random_unit_vector() * self.fuzz);
         *scattered = Ray::new_with_time(rec.p, reflected, r_in.time());
         *attenuation = self.albedo;
-        return dot(scattered.direction, rec.normal) >  0.0;
+        return dot(scattered.direction, rec.normal) > 0.0;
     }
 }
 
@@ -93,7 +98,6 @@ impl Dielectric {
     }
 
     pub fn reflectance(cosine: f64, refraction_index: f64) -> f64 {
-        // Use Schlick's approximation for reflectance.
         let mut r0 = (1.0 - refraction_index) / (1.0 + refraction_index);
         r0 = r0 * r0;
         r0 + (1.0 - r0) * (1.0 - cosine).powf(5.0)
@@ -117,7 +121,7 @@ impl Material for Dielectric {
 
         let unit_direction = unit_vector(r_in.direction);
         let cos_theta = (dot(-unit_direction, rec.normal)).min(1.0);
-        let sin_theta = (1.0 - cos_theta*cos_theta).sqrt();
+        let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
 
         let cannot_refract = ri * sin_theta > 1.0;
         let direction: Vec3;
