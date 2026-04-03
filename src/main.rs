@@ -461,7 +461,7 @@ fn simple_light() {
     world.add(Box::new(Sphere::new(
         Point3::new(0.0, 7.0, 0.0),
         2.0,
-        Some(difflight),
+        Some(difflight.clone()),
     )));
 
     let world = bvh::BvhNode::new(world);
@@ -493,8 +493,19 @@ fn simple_light() {
         10.0,
     );
 
-    let empty_lights = HittableList::new();
-    camera.render(&world, &empty_lights);
+    let mut lights = HittableList::new();
+    lights.add(Box::new(Quad::new(
+        Point3::new(3.0, 1.0, -2.0),
+        Vec3::new(2.0, 0.0, 0.0),
+        Vec3::new(0.0, 2.0, 0.0),
+        None,
+    )));
+    lights.add(Box::new(Sphere::new(
+        Point3::new(0.0, 7.0, 0.0),
+        2.0,
+        None,
+    )));
+    camera.render(&world, &lights);
 }
 
 fn cornell_box() {
@@ -597,7 +608,7 @@ fn cornell_box() {
         Point3::new(343.0, 554.0, 332.0),
         Vec3::new(-130.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, -105.0),
-        None, // doesn't need material to act as light source for importance sampling
+        None,
     )));
 
     camera.render(&world, &lights);
@@ -628,7 +639,7 @@ fn cornell_smoke() {
         Point3::new(113.0, 554.0, 127.0),
         Vec3::new(330.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, 305.0),
-        Some(light),
+        Some(light.clone()),
     )));
     world.add(Box::new(Quad::new(
         Point3::new(0.0, 555.0, 0.0),
@@ -707,8 +718,14 @@ fn cornell_smoke() {
         focus_dist,
     );
 
-    let empty_lights = HittableList::new();
-    camera.render(&world, &empty_lights);
+    let mut lights = HittableList::new();
+    lights.add(Box::new(Quad::new(
+        Point3::new(113.0, 554.0, 127.0),
+        Vec3::new(330.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 305.0),
+        None,
+    )));
+    camera.render(&world, &lights);
 }
 
 fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usize) {
@@ -743,7 +760,7 @@ fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usize) {
         Point3::new(123.0, 554.0, 147.0),
         Vec3::new(300.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, 265.0),
-        Some(light),
+        Some(light.clone()),
     )));
 
     // Moving sphere
@@ -859,14 +876,20 @@ fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usize) {
         10.0,
     );
 
-    let empty_lights = HittableList::default();
-    camera.render(&world, &empty_lights);
+    let mut lights = HittableList::new();
+    lights.add(Box::new(Quad::new(
+        Point3::new(123.0, 554.0, 147.0),
+        Vec3::new(300.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 265.0),
+        None,
+    )));
+    camera.render(&world, &lights);
 }
 
 fn main() {
     let start = Instant::now();
 
-    match 9 {
+    match 10 {
         1 => bouncing_spheres(),
         2 => checkered_spheres(),
         3 => earth(),
@@ -876,7 +899,7 @@ fn main() {
         7 => simple_light(),
         8 => cornell_smoke(),
         9 => cornell_box(),
-        10 => final_scene(720, 10, 10),
+        10 => final_scene(720, 1000, 16),
         _ => unreachable!(),
     }
 
