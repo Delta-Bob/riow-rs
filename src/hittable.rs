@@ -43,6 +43,17 @@ impl HitRecord {
 pub trait Hittable: Send + Sync {
     fn hit(&self, ray: &Ray, ray_t: Interval, rec: &mut HitRecord) -> bool;
     fn bounding_box(&self) -> AABB;
+    fn pdf_value(&self, _origin: &Point3, _direction: &Vec3) -> f64 {
+        0.0
+    }
+    fn random(&self, _origin: &Point3) -> Vec3 {
+        Vec3::new(1.0, 0.0, 0.0)
+    }
+    
+    // Helps avoid applying mixture PDF on scenes with no valid light sources
+    fn is_empty(&self) -> bool {
+        false
+    }
 }
 
 pub struct Translate {

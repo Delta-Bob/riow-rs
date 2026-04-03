@@ -1,6 +1,7 @@
 use crate::color::Color;
 use crate::hittable::{HitRecord, Hittable};
 use crate::interval::Interval;
+use crate::pdf::{Pdf, HittablePdf, MixturePdf};
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3, unit_vector, cross};
 use crate::common::{self, degrees_to_radians, INFINITY};
@@ -68,7 +69,7 @@ impl Camera {
         camera
     }
 
-    pub fn render(&self, world: &(dyn Hittable + Sync)) {
+    pub fn render(&self, world: &(dyn Hittable + Sync), lights: &(dyn Hittable + Sync)) {
         let stdout = std::io::stdout();
         let mut handle = stdout.lock();
 
@@ -88,7 +89,7 @@ impl Camera {
                 let mut pixel_color = Color::new(0.0, 0.0, 0.0);
                 for _ in 0..self.samples_per_pixel {
                     let r = self.get_ray(i, j);
-                    pixel_color += self.ray_color(&r, self.max_depth, world);
+                    pixel_color += self.ray_color(&r, self.max_depth, world, lights);
                 }
                 // Instead of writing to file, we push to a temporary vector
                 row_pixels.push(pixel_color * self.pixel_samples_scale);
@@ -168,7 +169,7 @@ impl Camera {
         Vec3::new(common::random_f64() - 0.5, common::random_f64() - 0.5, 0.0)
     }
 
-    fn ray_color(&self, r: &Ray, depth: i32, world: &dyn Hittable) -> Color {
+    fn ray_color(&self, r: &Ray, depth: i32, world: &(dyn Hittable + Sync), lights: &(dyn Hittable + Sync)) -> Color {
         if depth <= 0 {
             return Color::new(0.0, 0.0 , 0.0)
         }
@@ -179,16 +180,44 @@ impl Camera {
             return self.background;
         }
 
-        let mut scattered = Ray::new(Point3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0));
-        let mut attenuation = Color::new(0.0, 0.0, 0.0);
         let color_from_emission = rec.mat.as_ref().unwrap().emitted(rec.u, rec.v, rec.p);
 
-        if !rec.mat.as_ref().unwrap().scatter(r, &rec, &mut attenuation, &mut scattered) {
+        let scatter_rec = if let Some(sr) = rec.mat.as_ref().unwrap().scatter(r, &rec) {
+            sr
+        } else {
             return color_from_emission;
+        };
+
+        if scatter_rec.is_specular {
+            let spec_ray = scatter_rec.specular_ray.unwrap();
+            return color_from_emission 
+                + scatter_rec.attenuation * self.ray_color(&spec_ray, depth - 1, world, lights);
         }
 
-        let color_from_scatter = attenuation * self.ray_color(&scattered, depth - 1, world);
-        return color_from_emission + color_from_scatter;
+        let material_pdf = scatter_rec.pdf.unwrap();
+        let pdf_val: f64;
+        let scattered_dir: Vec3;
+        
+        if lights.is_empty() {
+            scattered_dir = material_pdf.generate();
+            pdf_val = material_pdf.value(&scattered_dir);
+        } else {
+            let light_pdf = HittablePdf::new(lights, rec.p);
+            let mixed_pdf = MixturePdf::new(&light_pdf, material_pdf.as_ref());
+            scattered_dir = mixed_pdf.generate();
+            pdf_val = mixed_pdf.value(&scattered_dir);
+        }
+
+        let scattered = Ray::new_with_time(rec.p, scattered_dir, r.time());
+        let scattering_pdf_val = rec.mat.as_ref().unwrap().scattering_pdf(r, &rec, &scattered);
+
+        let scatter_color = if pdf_val < 1e-15 {
+            Color::new(0.0, 0.0, 0.0)
+        } else {
+            (scatter_rec.attenuation * scattering_pdf_val * self.ray_color(&scattered, depth - 1, world, lights)) / pdf_val
+        };
+
+        return color_from_emission + scatter_color;
     }
 
     fn defocus_disk_sample(&self) -> Point3 {

@@ -16,6 +16,7 @@ mod sphere;
 mod texture;
 mod triangle;
 mod vec3;
+mod pdf;
 
 use crate::quad::Quad;
 use crate::triangle::Triangle;
@@ -30,7 +31,7 @@ use vec3::{Point3, Vec3};
 
 fn bouncing_spheres() {
     // World
-    let mut world = HittableList::new();
+    let mut world = HittableList::default();
 
     let checker = Arc::new(Lambertian::from_texture(Box::new(
         texture::CheckerTexture::from_colors(
@@ -138,11 +139,12 @@ fn bouncing_spheres() {
     );
 
     // Render
-    camera.render(&world);
+    let empty_lights = HittableList::new();
+    camera.render(&world, &empty_lights);
 }
 
 fn checkered_spheres() {
-    let mut world = HittableList::new();
+    let mut world = HittableList::default();
 
     let checker = Arc::new(Lambertian::from_texture(Box::new(
         texture::CheckerTexture::from_colors(
@@ -198,13 +200,14 @@ fn checkered_spheres() {
 
     // Render
     let start = Instant::now();
-    camera.render(&world);
+    let empty_lights = HittableList::new();
+    camera.render(&world, &empty_lights);
     let duration = start.elapsed();
     eprintln!("Render time: {:?}", duration);
 }
 
 fn earth() {
-    let mut world = HittableList::new();
+    let mut world = HittableList::default();
 
     let earth_texture = texture::ImageTexture::new("earthmap.jpg");
     let earth_surface = Arc::new(Lambertian::from_texture(Box::new(earth_texture)));
@@ -241,11 +244,12 @@ fn earth() {
         10.0,
     );
 
-    camera.render(&world);
+    let empty_lights = HittableList::new();
+    camera.render(&world, &empty_lights);
 }
 
 fn perlin_spheres() {
-    let mut world = HittableList::new();
+    let mut world = HittableList::default();
 
     let pertext = Arc::new(Lambertian::from_texture(Box::new(
         texture::NoiseTexture::new(4.0),
@@ -291,11 +295,12 @@ fn perlin_spheres() {
         10.0,
     );
 
-    camera.render(&world);
+    let empty_lights = HittableList::new();
+    camera.render(&world, &empty_lights);
 }
 
 fn quads() {
-    let mut world = HittableList::new();
+    let mut world = HittableList::default();
 
     let left_red = Arc::new(Lambertian::new(Color::new(1.0, 0.2, 0.2)));
     let back_green = Arc::new(Lambertian::new(Color::new(0.2, 1.0, 0.2)));
@@ -363,11 +368,12 @@ fn quads() {
         10.0,
     );
 
-    camera.render(&world);
+    let empty_lights = HittableList::new();
+    camera.render(&world, &empty_lights);
 }
 fn triangles() {
     // Build a coherent triangular demo: a colored tetrahedron above a ground plane.
-    let mut world = HittableList::new();
+    let mut world = HittableList::default();
 
     // Ground (large sphere acting as a ground plane)
     let ground_mat = Arc::new(Lambertian::new(Color::new(0.8, 0.8, 0.8)));
@@ -424,11 +430,12 @@ fn triangles() {
         focus_dist,
     );
 
-    camera.render(&world);
+    let empty_lights = HittableList::new();
+    camera.render(&world, &empty_lights);
 }
 
 fn simple_light() {
-    let mut world = HittableList::new();
+    let mut world = HittableList::default();
 
     let pertext = Arc::new(Lambertian::from_texture(Box::new(
         texture::NoiseTexture::new(4.0),
@@ -486,11 +493,12 @@ fn simple_light() {
         10.0,
     );
 
-    camera.render(&world);
+    let empty_lights = HittableList::new();
+    camera.render(&world, &empty_lights);
 }
 
 fn cornell_box() {
-    let mut world = HittableList::new();
+    let mut world = HittableList::default();
 
     let red = Arc::new(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
     let white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
@@ -558,7 +566,7 @@ fn cornell_box() {
 
     let aspect_ratio = 1.0;
     let image_width = 720;
-    let samples_per_pixel = 1000;
+    let samples_per_pixel = 500;
     let max_depth = 10;
     let background = Color::new(0.0, 0.0, 0.0);
 
@@ -584,11 +592,19 @@ fn cornell_box() {
         focus_dist,
     );
 
-    camera.render(&world);
+    let mut lights = HittableList::new();
+    lights.add(Box::new(Quad::new(
+        Point3::new(343.0, 554.0, 332.0),
+        Vec3::new(-130.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -105.0),
+        None, // doesn't need material to act as light source for importance sampling
+    )));
+
+    camera.render(&world, &lights);
 }
 
 fn cornell_smoke() {
-    let mut world = HittableList::new();
+    let mut world = HittableList::default();
 
     let red = Arc::new(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
     let white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
@@ -691,7 +707,8 @@ fn cornell_smoke() {
         focus_dist,
     );
 
-    camera.render(&world);
+    let empty_lights = HittableList::new();
+    camera.render(&world, &empty_lights);
 }
 
 fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usize) {
@@ -718,7 +735,7 @@ fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usize) {
         }
     }
 
-    let mut world = HittableList::new();
+    let mut world = HittableList::default();
     world.add(Box::new(bvh::BvhNode::new(boxes1)));
 
     let light = Arc::new(DiffuseLight::new(Color::new(7.0, 7.0, 7.0)));
@@ -842,13 +859,14 @@ fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usize) {
         10.0,
     );
 
-    camera.render(&world);
+    let empty_lights = HittableList::default();
+    camera.render(&world, &empty_lights);
 }
 
 fn main() {
     let start = Instant::now();
 
-    match 10 {
+    match 9 {
         1 => bouncing_spheres(),
         2 => checkered_spheres(),
         3 => earth(),

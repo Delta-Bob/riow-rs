@@ -90,6 +90,36 @@ impl Hittable for Sphere {
 
         AABB::from_boxes(&box0, &box1)
     }
+
+    fn pdf_value(&self, origin: &Point3, direction: &Vec3) -> f64 {
+        let mut rec = HitRecord::new();
+        if !self.hit(&Ray::new_with_time(*origin, *direction, 0.0), Interval::new(0.001, crate::common::INFINITY), &mut rec) {
+            return 0.0;
+        }
+
+        let center = self.center_at(0.0);
+        let cos_theta_max = (1.0 - self.radius * self.radius / (*origin - center).length_squared()).sqrt();
+        let solid_angle = 2.0 * std::f64::consts::PI * (1.0 - cos_theta_max);
+
+        1.0 / solid_angle
+    }
+
+    fn random(&self, origin: &Point3) -> Vec3 {
+        let center = self.center_at(0.0);
+        let direction = center - *origin;
+        let distance_squared = direction.length_squared();
+        let uvw = crate::pdf::Onb::build_from_w(&direction);
+
+        let r1 = crate::common::random_f64();
+        let r2 = crate::common::random_f64();
+
+        let z = 1.0 + r2 * ((1.0 - self.radius * self.radius / distance_squared).sqrt() - 1.0);
+        let phi = 2.0 * std::f64::consts::PI * r1;
+        let x = phi.cos() * (1.0 - z * z).sqrt();
+        let y = phi.sin() * (1.0 - z * z).sqrt();
+
+        uvw.local(&Vec3::new(x, y, z))
+    }
 }
 
 fn get_sphere_uv(p: &Point3) -> (f64, f64) {

@@ -116,4 +116,22 @@ impl Hittable for Quad {
 
         return true;
     }
+
+    fn pdf_value(&self, origin: &Point3, direction: &Vec3) -> f64 {
+        let mut rec = HitRecord::new();
+        if !self.hit(&Ray::new_with_time(*origin, *direction, 0.0), Interval::new(0.001, crate::common::INFINITY), &mut rec) {
+            return 0.0;
+        }
+
+        let distance_squared = rec.t * rec.t * direction.length_squared();
+        let cosine = (dot(*direction, rec.normal) / direction.length()).abs();
+        let area = cross(self.u, self.v).length();
+
+        distance_squared / (cosine * area)
+    }
+
+    fn random(&self, origin: &Point3) -> Vec3 {
+        let p = self.q + (self.u * crate::common::random_f64()) + (self.v * crate::common::random_f64());
+        p - *origin
+    }
 }
