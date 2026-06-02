@@ -1,4 +1,4 @@
-use crate::vec3::{self, Point3, Vec3, cross, dot, unit_vector};
+use crate::vec3::{Point3, Vec3, cross, dot, unit_vector};
 use crate::common::{random_f64, PI};
 use crate::hittable::Hittable;
 

@@ -7,8 +7,11 @@ use crate::vec3::{Point3, Vec3, unit_vector, cross};
 use crate::common::{self, degrees_to_radians, INFINITY};
 
 use std::io::Write;
+use std::fs::File;
+use std::io::BufWriter;
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use image::{ImageBuffer, RgbImage};
 
 pub struct Camera {
     pub aspect_ratio: f64,
@@ -70,15 +73,17 @@ impl Camera {
     }
 
     pub fn render(&self, world: &(dyn Hittable + Sync), lights: &(dyn Hittable + Sync)) {
-        let stdout = std::io::stdout();
-        let mut handle = stdout.lock();
+        let file = File::create("output.ppm").expect("Failed to create output file");
+        let mut handle = BufWriter::new(file);
+
+        std::fs::File::create("image.png").unwrap();
 
         writeln!(handle, "P3\n{} {}\n255", self.image_width, self.image_height).unwrap();
 
         let lines_remaining = AtomicUsize::new(self.image_height as usize);
 
         let pixel_rows: Vec<Vec<Color>> = (0..self.image_height).into_par_iter().map(|j| {
-            // Print progress (Atomic decrement is thread-safe)
+            // Print progress
             let remaining = lines_remaining.fetch_sub(1, Ordering::Relaxed);
 
             eprint!("\rScanlines remaining: {}   ", remaining);
@@ -89,21 +94,34 @@ impl Camera {
                 let mut pixel_color = Color::new(0.0, 0.0, 0.0);
                 for _ in 0..self.samples_per_pixel {
                     let r = self.get_ray(i, j);
-                    pixel_color += self.ray_color(&r, self.max_depth, world, lights);
+                    // clamp contribution to avoid fireflies
+                    let mut color = self.ray_color(&r, self.max_depth, world, lights);
+                    let lum = 0.299 * color.x() + 0.587 * color.y() + 0.114 * color.z();
+                    if lum > 1.0 {
+                        color = color * (1.0 / lum);
+                    }
+                    pixel_color += color;
                 }
-                // Instead of writing to file, we push to a temporary vector
                 row_pixels.push(pixel_color * self.pixel_samples_scale);
             }
             row_pixels
-        }).collect(); // This collects all threads' results back into order
+        }).collect();
 
-        eprintln!("\rDone.                 ");
+        let mut img: RgbImage = ImageBuffer::new(self.image_width as u32, self.image_height as u32);
 
-        for row in pixel_rows {
-            for pixel in row {
-                crate::color::write_color(&mut handle, pixel);
+        for (j, row) in pixel_rows.iter().enumerate() {
+            for (i, color) in row.iter().enumerate() {
+                let r = (color.x().clamp(0.0, 1.0) * 255.999) as u8;
+                let g = (color.y().clamp(0.0, 1.0) * 255.999) as u8;
+                let b = (color.z().clamp(0.0, 1.0) * 255.999) as u8;
+                img.put_pixel(i as u32, j as u32, image::Rgb([r, g, b]));
             }
         }
+
+        img.save("image.png").unwrap();
+
+        eprintln!("\nSaved to image.png");
+        eprintln!("\nDone.                 ");
     }
 
     fn initialize(&mut self) {

@@ -577,7 +577,7 @@ fn cornell_box() {
 
     let aspect_ratio = 1.0;
     let image_width = 720;
-    let samples_per_pixel = 500;
+    let samples_per_pixel = 100;
     let max_depth = 10;
     let background = Color::new(0.0, 0.0, 0.0);
 
@@ -660,7 +660,6 @@ fn cornell_smoke() {
         Some(white.clone()),
     )));
 
-    // Box 1 with black smoke
     let box1: Arc<dyn hittable::Hittable> = Arc::new(Quad::box_shape(
         Point3::new(0.0, 0.0, 0.0),
         Point3::new(165.0, 330.0, 165.0),
@@ -674,7 +673,6 @@ fn cornell_smoke() {
         Color::new(0.0, 0.0, 0.0),
     )));
 
-    // Box 2 with white smoke
     let box2: Arc<dyn hittable::Hittable> = Arc::new(Quad::box_shape(
         Point3::new(0.0, 0.0, 0.0),
         Point3::new(165.0, 165.0, 165.0),
@@ -691,7 +689,7 @@ fn cornell_smoke() {
     let world = bvh::BvhNode::new(world);
 
     let aspect_ratio = 1.0;
-    let image_width = 600;
+    let image_width = 720;
     let samples_per_pixel = 200;
     let max_depth = 50;
     let background = Color::new(0.0, 0.0, 0.0);
@@ -899,7 +897,7 @@ fn main() {
         7 => simple_light(),
         8 => cornell_smoke(),
         9 => cornell_box(),
-        10 => final_scene(720, 1000, 16),
+        10 => final_scene(1920, 1, 32),
         _ => unreachable!(),
     }
 

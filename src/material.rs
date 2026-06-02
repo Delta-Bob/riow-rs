@@ -44,7 +44,7 @@ impl Lambertian {
 }
 
 impl Material for Lambertian {
-    fn scatter(&self, _r_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
+    fn scatter(&'_ self, _r_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord<'_>> {
         let attenuation = self.tex.value(rec.u, rec.v, rec.p);
         let pdf = Box::new(CosinePdf::new(&rec.normal));
         Some(ScatterRecord {
@@ -182,7 +182,7 @@ impl Isotropic {
 }
 
 impl Material for Isotropic {
-    fn scatter(&self, _r_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
+    fn scatter(&self, _r_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord<'_>> {
         let attenuation = self.tex.value(rec.u, rec.v, rec.p);
         let pdf = Box::new(SpherePdf::new());
         Some(ScatterRecord {
