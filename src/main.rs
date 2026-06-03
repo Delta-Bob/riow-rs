@@ -452,17 +452,20 @@ fn simple_light() {
     )));
 
     let difflight = Arc::new(DiffuseLight::new(Color::new(4.0, 4.0, 4.0)));
-    world.add(Box::new(Quad::new(
+    let light_quad: Arc<dyn hittable::Hittable> = Arc::new(Quad::new(
         Point3::new(3.0, 1.0, -2.0),
         Vec3::new(2.0, 0.0, 0.0),
         Vec3::new(0.0, 2.0, 0.0),
         Some(difflight.clone()),
-    )));
-    world.add(Box::new(Sphere::new(
+    ));
+    let light_sphere: Arc<dyn hittable::Hittable> = Arc::new(Sphere::new(
         Point3::new(0.0, 7.0, 0.0),
         2.0,
         Some(difflight.clone()),
-    )));
+    ));
+
+    world.add(Box::new(light_quad.clone()));
+    world.add(Box::new(light_sphere.clone()));
 
     let world = bvh::BvhNode::new(world);
 
@@ -494,28 +497,26 @@ fn simple_light() {
     );
 
     let mut lights = HittableList::new();
-    lights.add(Box::new(Quad::new(
-        Point3::new(3.0, 1.0, -2.0),
-        Vec3::new(2.0, 0.0, 0.0),
-        Vec3::new(0.0, 2.0, 0.0),
-        None,
-    )));
-    lights.add(Box::new(Sphere::new(
-        Point3::new(0.0, 7.0, 0.0),
-        2.0,
-        None,
-    )));
+    lights.add(Box::new(light_quad));
+    lights.add(Box::new(light_sphere));
     camera.render(&world, &lights);
 }
 
-fn cornell_box() {
+fn cornell_box(image_width: i32, samples_per_pixel: i32, max_depth: i32) {
     let mut world = HittableList::default();
 
     let red = Arc::new(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
     let white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
     let green = Arc::new(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
-    let light = Arc::new(DiffuseLight::new(Color::new(15.0, 15.0, 15.0)));
+    let light_mat = Arc::new(DiffuseLight::new(Color::new(60.0, 60.0, 60.0)));
     let metal = Arc::new(Metal::new(Vec3::new(1.0, 1.0, 1.0), 10.0));
+
+    let light_quad: Arc<dyn hittable::Hittable> = Arc::new(Quad::new(
+        Point3::new(343.0, 554.0, 332.0),
+        Vec3::new(-130.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -105.0),
+        Some(light_mat),
+    ));
 
     // Cornell box walls
     world.add(Box::new(Quad::new(
@@ -530,12 +531,7 @@ fn cornell_box() {
         Vec3::new(0.0, 0.0, 555.0),
         Some(red),
     )));
-    world.add(Box::new(Quad::new(
-        Point3::new(343.0, 554.0, 332.0),
-        Vec3::new(-130.0, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, -105.0),
-        Some(light),
-    )));
+    world.add(Box::new(light_quad.clone()));
     world.add(Box::new(Quad::new(
         Point3::new(0.0, 0.0, 0.0),
         Vec3::new(555.0, 0.0, 0.0),
@@ -576,9 +572,6 @@ fn cornell_box() {
     let world = bvh::BvhNode::new(world);
 
     let aspect_ratio = 1.0;
-    let image_width = 720;
-    let samples_per_pixel = 100;
-    let max_depth = 10;
     let background = Color::new(0.0, 0.0, 0.0);
 
     let vfov = 40.0;
@@ -604,23 +597,25 @@ fn cornell_box() {
     );
 
     let mut lights = HittableList::new();
-    lights.add(Box::new(Quad::new(
-        Point3::new(343.0, 554.0, 332.0),
-        Vec3::new(-130.0, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, -105.0),
-        None,
-    )));
+    lights.add(Box::new(light_quad));
 
     camera.render(&world, &lights);
 }
 
-fn cornell_smoke() {
+fn cornell_smoke(image_width: i32, samples_per_pixel: i32, max_depth: i32) {
     let mut world = HittableList::default();
 
     let red = Arc::new(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
     let white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
     let green = Arc::new(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
-    let light = Arc::new(DiffuseLight::new(Color::new(7.0, 7.0, 7.0)));
+    let light_mat = Arc::new(DiffuseLight::new(Color::new(7.0, 7.0, 7.0)));
+
+    let light_quad: Arc<dyn hittable::Hittable> = Arc::new(Quad::new(
+        Point3::new(113.0, 554.0, 127.0),
+        Vec3::new(330.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 305.0),
+        Some(light_mat),
+    ));
 
     // Cornell box walls
     world.add(Box::new(Quad::new(
@@ -635,12 +630,7 @@ fn cornell_smoke() {
         Vec3::new(0.0, 0.0, 555.0),
         Some(red),
     )));
-    world.add(Box::new(Quad::new(
-        Point3::new(113.0, 554.0, 127.0),
-        Vec3::new(330.0, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, 305.0),
-        Some(light.clone()),
-    )));
+    world.add(Box::new(light_quad.clone()));
     world.add(Box::new(Quad::new(
         Point3::new(0.0, 555.0, 0.0),
         Vec3::new(555.0, 0.0, 0.0),
@@ -688,10 +678,7 @@ fn cornell_smoke() {
 
     let world = bvh::BvhNode::new(world);
 
-    let aspect_ratio = 1.0;
-    let image_width = 720;
-    let samples_per_pixel = 200;
-    let max_depth = 50;
+    let aspect_ratio = 16.0 / 9.0;
     let background = Color::new(0.0, 0.0, 0.0);
 
     let vfov = 40.0;
@@ -717,12 +704,7 @@ fn cornell_smoke() {
     );
 
     let mut lights = HittableList::new();
-    lights.add(Box::new(Quad::new(
-        Point3::new(113.0, 554.0, 127.0),
-        Vec3::new(330.0, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, 305.0),
-        None,
-    )));
+    lights.add(Box::new(light_quad));
     camera.render(&world, &lights);
 }
 
@@ -753,13 +735,14 @@ fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usize) {
     let mut world = HittableList::default();
     world.add(Box::new(bvh::BvhNode::new(boxes1)));
 
-    let light = Arc::new(DiffuseLight::new(Color::new(7.0, 7.0, 7.0)));
-    world.add(Box::new(Quad::new(
+    let light_mat = Arc::new(DiffuseLight::new(Color::new(7.0, 7.0, 7.0)));
+    let light_quad: Arc<dyn hittable::Hittable> = Arc::new(Quad::new(
         Point3::new(123.0, 554.0, 147.0),
         Vec3::new(300.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, 265.0),
-        Some(light.clone()),
-    )));
+        Some(light_mat),
+    ));
+    world.add(Box::new(light_quad.clone()));
 
     // Moving sphere
     let center1 = Point3::new(400.0, 400.0, 200.0);
@@ -875,12 +858,7 @@ fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usize) {
     );
 
     let mut lights = HittableList::new();
-    lights.add(Box::new(Quad::new(
-        Point3::new(123.0, 554.0, 147.0),
-        Vec3::new(300.0, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, 265.0),
-        None,
-    )));
+    lights.add(Box::new(light_quad));
     camera.render(&world, &lights);
 }
 
@@ -888,7 +866,7 @@ fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usize) {
 fn main() {
     let start = Instant::now();
 
-    match 10 {
+    match 9 {
         1 => bouncing_spheres(),
         2 => checkered_spheres(),
         3 => earth(),
@@ -896,8 +874,8 @@ fn main() {
         5 => quads(),
         6 => triangles(),
         7 => simple_light(),
-        8 => cornell_smoke(),
-        9 => cornell_box(),
+        8 => cornell_smoke(2400, 1000, 32),
+        9 => cornell_box(2400, 10, 128),
         10 => final_scene(1280, 10, 32),
         _ => unreachable!(),
     }

@@ -56,6 +56,28 @@ pub trait Hittable: Send + Sync {
     }
 }
 
+impl Hittable for Arc<dyn Hittable> {
+    fn hit(&self, ray: &Ray, ray_t: Interval, rec: &mut HitRecord) -> bool {
+        self.as_ref().hit(ray, ray_t, rec)
+    }
+
+    fn bounding_box(&self) -> AABB {
+        self.as_ref().bounding_box()
+    }
+
+    fn pdf_value(&self, origin: &Point3, direction: &Vec3) -> f64 {
+        self.as_ref().pdf_value(origin, direction)
+    }
+
+    fn random(&self, origin: &Point3) -> Vec3 {
+        self.as_ref().random(origin)
+    }
+
+    fn is_empty(&self) -> bool {
+        self.as_ref().is_empty()
+    }
+}
+
 pub struct Translate {
     pub object: Arc<dyn Hittable>,
     pub offset: Vec3,
