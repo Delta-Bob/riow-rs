@@ -850,7 +850,7 @@ fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usize) {
 
     let world = bvh::BvhNode::new(world);
 
-    let aspect_ratio = 16.0 / 10.0;
+    let aspect_ratio = 16.0 / 9.0;
     let background = Color::new(0.0, 0.0, 0.0);
 
     let vfov = 40.0;
@@ -884,6 +884,7 @@ fn final_scene(image_width: usize, samples_per_pixel: usize, max_depth: usize) {
     camera.render(&world, &lights);
 }
 
+// Choose demo scene here
 fn main() {
     let start = Instant::now();
 
@@ -897,7 +898,7 @@ fn main() {
         7 => simple_light(),
         8 => cornell_smoke(),
         9 => cornell_box(),
-        10 => final_scene(1080, 10, 32),
+        10 => final_scene(1280, 10, 32),
         _ => unreachable!(),
     }
 

@@ -73,12 +73,8 @@ impl Camera {
     }
 
     pub fn render(&self, world: &(dyn Hittable + Sync), lights: &(dyn Hittable + Sync)) {
-        let file = File::create("output.ppm").expect("Failed to create output file");
-        let mut handle = BufWriter::new(file);
-
+        eprintln!("Creating image with dimensions {}x{}", self.image_width, self.image_height);
         std::fs::File::create("image.png").unwrap();
-
-        writeln!(handle, "P3\n{} {}\n255", self.image_width, self.image_height).unwrap();
 
         let lines_remaining = AtomicUsize::new(self.image_height as usize);
 
@@ -120,7 +116,7 @@ impl Camera {
 
         img.save("image.png").unwrap();
 
-        eprintln!("\nSaved to image.png");
+        eprintln!("\nSaved output to image.png");
         eprintln!("\nDone.                 ");
     }
 
