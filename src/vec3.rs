@@ -1,5 +1,6 @@
-use std::fmt::{Display, Formatter, Result};
-use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub};
+//! 3D vector and point math.
+
+use std::ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Sub};
 
 use crate::common::{random_f64, random_f64_range};
 
@@ -8,43 +9,46 @@ pub struct Vec3 {
     e: [f64; 3],
 }
 
+/// Alias used when a `Vec3` represents a position rather than a direction.
+pub type Point3 = Vec3;
+
 impl Vec3 {
-    pub fn default() -> Vec3 {
-        Vec3 { e: [0.0, 0.0, 0.0] }
+    pub const fn new(e0: f64, e1: f64, e2: f64) -> Self {
+        Self { e: [e0, e1, e2] }
     }
 
-    pub fn new(e0: f64, e1: f64, e2: f64) -> Vec3 {
-        Vec3 { e: [e0, e1, e2] }
-    }
-
-    pub fn x(&self) -> f64 {
+    pub fn x(self) -> f64 {
         self.e[0]
     }
-    pub fn y(&self) -> f64 {
+
+    pub fn y(self) -> f64 {
         self.e[1]
     }
-    pub fn z(&self) -> f64 {
+
+    pub fn z(self) -> f64 {
         self.e[2]
     }
 
-    pub fn length(&self) -> f64 {
-        self.length_squared().sqrt()
-    }
-
-    pub fn length_squared(&self) -> f64 {
+    pub fn length_squared(self) -> f64 {
         self.e[0] * self.e[0] + self.e[1] * self.e[1] + self.e[2] * self.e[2]
     }
 
-    pub fn near_zero(&self) -> bool {
-        let s = 1e-8;
-        self.e[0].abs() < s && self.e[1].abs() < s && self.e[2].abs() < s
+    pub fn length(self) -> f64 {
+        self.length_squared().sqrt()
     }
 
-    pub fn random() -> Vec3 {
+    /// The largest component of this vector.
+    pub fn max_component(self) -> f64 {
+        self.e[0].max(self.e[1]).max(self.e[2])
+    }
+
+    /// Returns a vector with each component in `[0, 1)`.
+    pub fn random() -> Self {
         Self::new(random_f64(), random_f64(), random_f64())
     }
 
-    pub fn random_range(min: f64, max: f64) -> Vec3 {
+    /// Returns a vector with each component in `[min, max)`.
+    pub fn random_range(min: f64, max: f64) -> Self {
         Self::new(
             random_f64_range(min, max),
             random_f64_range(min, max),
@@ -70,7 +74,7 @@ impl Index<usize> for Vec3 {
 }
 
 impl IndexMut<usize> for Vec3 {
-    fn index_mut(&mut self, i: usize) -> &mut Self::Output {
+    fn index_mut(&mut self, i: usize) -> &mut f64 {
         &mut self.e[i]
     }
 }
@@ -80,30 +84,6 @@ impl AddAssign for Vec3 {
         self.e[0] += rhs.e[0];
         self.e[1] += rhs.e[1];
         self.e[2] += rhs.e[2];
-    }
-}
-
-impl MulAssign<f64> for Vec3 {
-    fn mul_assign(&mut self, rhs: f64) {
-        self.e[0] *= rhs;
-        self.e[1] *= rhs;
-        self.e[2] *= rhs;
-    }
-}
-
-impl DivAssign<f64> for Vec3 {
-    fn div_assign(&mut self, rhs: f64) {
-        self.e[0] /= rhs;
-        self.e[1] /= rhs;
-        self.e[2] /= rhs;
-    }
-}
-
-pub type Point3 = Vec3;
-
-impl Display for Vec3 {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "{} {} {}", self.e[0], self.e[1], self.e[2])
     }
 }
 
@@ -123,6 +103,7 @@ impl Sub for Vec3 {
     }
 }
 
+/// Component-wise (Hadamard) product.
 impl Mul for Vec3 {
     type Output = Vec3;
 
@@ -163,6 +144,7 @@ pub fn unit_vector(v: Vec3) -> Vec3 {
     v / v.length()
 }
 
+/// Returns a random point inside the unit disk in the z = 0 plane.
 pub fn random_in_unit_disk() -> Vec3 {
     loop {
         let p = Vec3::new(
@@ -176,40 +158,27 @@ pub fn random_in_unit_disk() -> Vec3 {
     }
 }
 
+/// Returns a random unit vector (uniformly distributed on the unit sphere).
 pub fn random_unit_vector() -> Vec3 {
     loop {
         let p = Vec3::random_range(-1.0, 1.0);
-        let lensq = p.length_squared();
-        if 1e-160 < lensq && lensq <= 1.0 {
+        let len_squared = p.length_squared();
+        if 1e-160 < len_squared && len_squared <= 1.0 {
             return unit_vector(p);
         }
     }
 }
 
-pub fn _random_on_hemisphere(&normal: &Vec3) -> Vec3 {
-    let on_unit_sphere = random_unit_vector();
-    if dot(on_unit_sphere, normal) > 0.0 {
-        on_unit_sphere
-    } else {
-        -on_unit_sphere
-    }
-}
-
+/// Reflects `v` about the surface with unit normal `n`.
 pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
     v - n * (2.0 * dot(v, n))
 }
 
+/// Refracts `uv` (a unit vector) through a surface with unit normal `n`,
+/// where `etai_over_etat` is the ratio of refractive indices.
 pub fn refract(uv: Vec3, n: Vec3, etai_over_etat: f64) -> Vec3 {
     let cos_theta = dot(-uv, n).min(1.0);
     let r_out_perp = (uv + n * cos_theta) * etai_over_etat;
     let r_out_parallel = n * -((1.0 - r_out_perp.length_squared()).abs().sqrt());
     r_out_perp + r_out_parallel
-}
-
-pub fn random(min: f64, max: f64) -> Vec3 {
-    Vec3::new(
-        random_f64_range(min, max),
-        random_f64_range(min, max),
-        random_f64_range(min, max),
-    )
 }

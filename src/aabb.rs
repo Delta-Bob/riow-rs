@@ -1,24 +1,21 @@
-use crate::interval::Interval;
-use crate::vec3::{Point3, Vec3};
-use crate::ray::Ray;
-use crate::hittable::Hittable;
+//! Axis-aligned bounding boxes.
 
+use std::cmp::Ordering;
 use std::sync::Arc;
 
-#[derive(Clone)]
-pub struct AABB {
+use crate::hittable::Hittable;
+use crate::interval::Interval;
+use crate::ray::Ray;
+use crate::vec3::{Point3, Vec3};
+
+#[derive(Clone, Copy, Default)]
+pub struct Aabb {
     pub x: Interval,
     pub y: Interval,
     pub z: Interval,
 }
 
-impl Default for AABB {
-    fn default() -> Self {
-        AABB::new(Interval::default(), Interval::default(), Interval::default())
-    }
-}
-
-impl AABB {
+impl Aabb {
     pub fn empty() -> Self {
         Self {
             x: Interval::empty(),
@@ -27,13 +24,15 @@ impl AABB {
         }
     }
 
+    /// Builds a box from three intervals, padding any degenerate axis.
     pub fn new(x: Interval, y: Interval, z: Interval) -> Self {
-        let mut aabb = Self { x, y, z };
-        aabb.pad_to_minimums();
-        aabb
+        let mut bbox = Self { x, y, z };
+        bbox.pad_to_minimums();
+        bbox
     }
 
-    pub fn new_point3(a: Point3, b: Point3) -> Self {
+    /// Builds the box spanning the two points.
+    pub fn from_points(a: Point3, b: Point3) -> Self {
         let x = if a.x() < b.x() {
             Interval::new(a.x(), b.x())
         } else {
@@ -53,49 +52,49 @@ impl AABB {
         Self { x, y, z }
     }
 
-    pub fn from_boxes(box0: &AABB, box1: &AABB) -> Self {
+    /// The smallest box containing both `self` and `other`.
+    pub fn union(self, other: Aabb) -> Self {
         Self {
-            x: Interval::from_intervals(&box0.x, &box1.x),
-            y: Interval::from_intervals(&box0.y, &box1.y),
-            z: Interval::from_intervals(&box0.z, &box1.z),
+            x: self.x.union(other.x),
+            y: self.y.union(other.y),
+            z: self.z.union(other.z),
         }
     }
 
-    pub fn axis_interval(&self, n: usize) -> &Interval {
+    pub fn axis_interval(&self, n: usize) -> Interval {
         match n {
-            1 => &self.y,
-            2 => &self.z,
-            _ => &self.x,
+            1 => self.y,
+            2 => self.z,
+            _ => self.x,
         }
     }
 
+    /// Returns true if the ray intersects this box within `ray_t`.
+    ///
+    /// The `t0 > t1` form of the swap keeps axis-parallel rays that lie
+    /// exactly on a slab boundary (`0 * inf = NaN`) from being rejected;
+    /// `f64::max`/`min` ignore NaN, which keeps those axes unconstrained.
     pub fn hit(&self, r: &Ray, ray_t: Interval) -> bool {
-        let ray_orig = r.origin;
-        let ray_dir = r.direction;
+        let mut t_near = f64::NEG_INFINITY;
+        let mut t_far = f64::INFINITY;
 
-        for a in 0..3 {
-            let ax = self.axis_interval(a);
-            let adinv = 1.0 / ray_dir[a];
+        for axis in 0..3 {
+            let interval = self.axis_interval(axis);
+            let adinv = r.inv_dir(axis);
 
-            let t0 = (ax.min - ray_orig[a]) * adinv;
-            let t1 = (ax.max - ray_orig[a]) * adinv;
+            let t0 = (interval.min - r.origin[axis]) * adinv;
+            let t1 = (interval.max - r.origin[axis]) * adinv;
 
-            if t0 < t1 {
-                if t1 < ray_t.min || t0 > ray_t.max {
-                    return false;
-                }
-            } else {
-                if t0 < ray_t.min || t1 > ray_t.max {
-                    return false;
-                }
-            }
+            let (lo, hi) = if t0 > t1 { (t1, t0) } else { (t0, t1) };
+            t_near = t_near.max(lo);
+            t_far = t_far.min(hi);
         }
-        true
+
+        t_near <= ray_t.max && t_far >= ray_t.min
     }
 
-    pub fn longest_axis(&self) -> i32 {
-        // Returns the index of the longest axis of the bounding box
-
+    /// The index (0, 1 or 2) of the longest axis of this box.
+    pub fn longest_axis(&self) -> usize {
         if self.x.size() > self.y.size() && self.x.size() > self.z.size() {
             0
         } else if self.y.size() > self.z.size() {
@@ -107,42 +106,36 @@ impl AABB {
 
     fn pad_to_minimums(&mut self) {
         let delta = 0.0001;
-        if self.x.size() < delta { self.x = self.x.expand(delta); }
-        if self.y.size() < delta { self.y = self.y.expand(delta); }
-        if self.z.size() < delta { self.z = self.z.expand(delta); }
+        if self.x.size() < delta {
+            self.x = self.x.expand(delta);
+        }
+        if self.y.size() < delta {
+            self.y = self.y.expand(delta);
+        }
+        if self.z.size() < delta {
+            self.z = self.z.expand(delta);
+        }
     }
 }
 
-impl std::ops::Add<Vec3> for AABB {
-    type Output = AABB;
-    fn add(self, offset: Vec3) -> AABB {
-        AABB::new(self.x + offset.x(), self.y + offset.y(), self.z + offset.z())
+impl std::ops::Add<Vec3> for Aabb {
+    type Output = Aabb;
+
+    fn add(self, offset: Vec3) -> Aabb {
+        Aabb::new(
+            self.x + offset.x(),
+            self.y + offset.y(),
+            self.z + offset.z(),
+        )
     }
 }
 
-impl std::ops::Add<AABB> for Vec3 {
-    type Output = AABB;
-    fn add(self, bbox: AABB) -> AABB {
-        bbox + self
-    }
-}
-
-pub fn box_compare(a: &Arc<dyn Hittable>, b: &Arc<dyn Hittable>, axis_index: usize) -> std::cmp::Ordering {
-    let a_bbox = a.bounding_box();
-    let b_bbox = b.bounding_box();
-    let a_axis_interval = a_bbox.axis_interval(axis_index);
-    let b_axis_interval = b_bbox.axis_interval(axis_index);
-    a_axis_interval.min.partial_cmp(&b_axis_interval.min).unwrap_or(std::cmp::Ordering::Equal)
-}
-
-pub fn box_x_compare(a: &Arc<dyn Hittable>, b: &Arc<dyn Hittable>) -> std::cmp::Ordering {
-    box_compare(a, b, 0)
-}
-
-pub fn box_y_compare(a: &Arc<dyn Hittable>, b: &Arc<dyn Hittable>) -> std::cmp::Ordering {
-    box_compare(a, b, 1)
-}
-
-pub fn box_z_compare(a: &Arc<dyn Hittable>, b: &Arc<dyn Hittable>) -> std::cmp::Ordering {
-    box_compare(a, b, 2)
+/// Orders two objects by the lower bound of their bounding box on `axis`.
+pub fn compare_by_axis(a: &Arc<dyn Hittable>, b: &Arc<dyn Hittable>, axis: usize) -> Ordering {
+    let a_interval = a.bounding_box().axis_interval(axis);
+    let b_interval = b.bounding_box().axis_interval(axis);
+    a_interval
+        .min
+        .partial_cmp(&b_interval.min)
+        .unwrap_or(Ordering::Equal)
 }

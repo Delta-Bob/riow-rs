@@ -1,4 +1,4 @@
-use crate::common;
+//! A 1D interval, used for ray parameter ranges and bounding-box slabs.
 
 #[derive(Clone, Copy)]
 pub struct Interval {
@@ -13,48 +13,65 @@ impl Default for Interval {
 }
 
 impl Interval {
+    /// The empty interval (min > max), absorbing under union.
     pub fn empty() -> Self {
         Self {
-            min: common::INFINITY,
-            max: -common::INFINITY,
+            min: f64::INFINITY,
+            max: f64::NEG_INFINITY,
         }
     }
 
-    pub fn _universe() -> Self {
+    /// The interval containing every real number.
+    pub fn universe() -> Self {
         Self {
-            min: -common::INFINITY,
-            max: common::INFINITY,
+            min: f64::NEG_INFINITY,
+            max: f64::INFINITY,
         }
     }
 
-    pub fn from_intervals(a: &Interval, b: &Interval) -> Self {
+    pub fn new(min: f64, max: f64) -> Self {
+        Self { min, max }
+    }
+
+    /// The smallest interval containing both `self` and `other`.
+    pub fn union(self, other: Interval) -> Self {
         Self {
-            min: if a.min <= b.min { a.min } else { b.min },
-            max: if a.max >= b.max { a.max } else { b.max },
+            min: if self.min <= other.min {
+                self.min
+            } else {
+                other.min
+            },
+            max: if self.max >= other.max {
+                self.max
+            } else {
+                other.max
+            },
         }
     }
 
-    pub fn new(min: f64, max: f64) -> Self { Self {min, max} }
-
-    pub fn size(&self) -> f64 {
+    pub fn size(self) -> f64 {
         self.max - self.min
     }
 
-    pub fn contains(&self, x: f64) -> bool {
+    pub fn contains(self, x: f64) -> bool {
         self.min <= x && x <= self.max
     }
 
-    pub fn surrounds(&self, x: f64) -> bool {
+    pub fn surrounds(self, x: f64) -> bool {
         self.min < x && x < self.max
     }
 
-    pub fn clamp(&self, x: f64) -> f64 {
-        if x < self.min {return self.min};
-        if x > self.max {return self.max};
-        return x;
+    pub fn clamp(self, x: f64) -> f64 {
+        if x < self.min {
+            self.min
+        } else if x > self.max {
+            self.max
+        } else {
+            x
+        }
     }
 
-    pub fn expand(&self, delta: f64) -> Self {
+    pub fn expand(self, delta: f64) -> Self {
         let padding = delta / 2.0;
         Self {
             min: self.min - padding,
@@ -65,14 +82,8 @@ impl Interval {
 
 impl std::ops::Add<f64> for Interval {
     type Output = Interval;
+
     fn add(self, displacement: f64) -> Interval {
         Interval::new(self.min + displacement, self.max + displacement)
-    }
-}
-
-impl std::ops::Add<Interval> for f64 {
-    type Output = Interval;
-    fn add(self, ival: Interval) -> Interval {
-        ival + self
     }
 }

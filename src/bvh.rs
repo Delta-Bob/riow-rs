@@ -1,87 +1,64 @@
-use crate::aabb::{AABB, box_x_compare, box_y_compare, box_z_compare,};
-use crate::hittable::*;
+use std::sync::Arc;
+
+use crate::aabb::{Aabb, compare_by_axis};
+use crate::hittable::{HitRecord, Hittable};
 use crate::hittable_list::HittableList;
 use crate::interval::Interval;
 use crate::ray::Ray;
 
-use std::sync::Arc;
-
+/// A bounding volume hierarchy over a set of objects.
 pub struct BvhNode {
     left: Arc<dyn Hittable>,
     right: Arc<dyn Hittable>,
-    bbox: AABB,
+    bbox: Aabb,
 }
 
 impl BvhNode {
     pub fn new(list: HittableList) -> Self {
-        let len = list.objects.len();
-        let objects: Vec<Arc<dyn Hittable>> = list.objects
-            .into_iter()
-            .map(|obj| Arc::from(obj))
-            .collect();
-        Self::new_from_vec(objects, 0, len)
+        let mut objects = Vec::from(list);
+        assert!(!objects.is_empty(), "BvhNode requires at least one object");
+        Self::build(&mut objects)
     }
 
-    pub fn new_from_vec(
-        mut objects: Vec<Arc<dyn Hittable>>,
-        start: usize,
-        end: usize,
-    ) -> Self {
-
-        let mut bbox = AABB::empty();
-        for object_index in start..end {
-            bbox = AABB::from_boxes(&bbox, &objects[object_index].bounding_box());
+    /// Recursively splits `objects` along the longest axis of their bounding
+    /// box, in place, until each half fits in a leaf.
+    fn build(objects: &mut [Arc<dyn Hittable>]) -> Self {
+        let mut bbox = Aabb::empty();
+        for object in objects.iter() {
+            bbox = bbox.union(object.bounding_box());
         }
 
         let axis = bbox.longest_axis();
+        objects.sort_by(|a, b| compare_by_axis(a, b, axis));
 
-        let comparator = match axis {
-            0 => box_x_compare,
-            1 => box_y_compare,
-            _ => box_z_compare,
-        };
-
-        objects[start..end].sort_by(comparator);
-        
-        let object_span = end - start;
-
-        if object_span == 1 {
-            let obj = objects[start].clone();
-            let bbox = AABB::from_boxes(
-                &obj.bounding_box(),
-                &obj.bounding_box(),
-            );
-            BvhNode {
-                left: obj.clone(),
-                right: obj,
-                bbox,
+        match objects.len() {
+            1 => {
+                let object = objects[0].clone();
+                Self {
+                    left: object.clone(),
+                    right: object,
+                    bbox,
+                }
             }
-        } else if object_span == 2 {
-            let left = objects[start].clone();
-            let right = objects[start + 1].clone();
-            let bbox = AABB::from_boxes(&left.bounding_box(), &right.bounding_box());
-            BvhNode {
-                left,
-                right,
+            2 => Self {
+                left: objects[0].clone(),
+                right: objects[1].clone(),
                 bbox,
-            }
-        } else {
-            let mid = start + object_span / 2;
-            let left = Arc::new(Self::new_from_vec(objects.clone(), start, mid));
-            let right = Arc::new(Self::new_from_vec(objects, mid, end));
-            let bbox = AABB::from_boxes(&left.bounding_box(), &right.bounding_box());
+            },
+            _ => {
+                let (left_objects, right_objects) = objects.split_at_mut(objects.len() / 2);
+                let left: Arc<dyn Hittable> = Arc::new(Self::build(left_objects));
+                let right: Arc<dyn Hittable> = Arc::new(Self::build(right_objects));
+                let bbox = left.bounding_box().union(right.bounding_box());
 
-            BvhNode {
-                left,
-                right,
-                bbox,
+                Self { left, right, bbox }
             }
         }
     }
 }
 
 impl Hittable for BvhNode {
-    fn hit(&self, r: &Ray, ray_t: Interval, rec: &mut HitRecord) -> bool {
+    fn hit<'a>(&'a self, r: &Ray, ray_t: Interval, rec: &mut HitRecord<'a>) -> bool {
         if !self.bbox.hit(r, ray_t) {
             return false;
         }
@@ -96,7 +73,7 @@ impl Hittable for BvhNode {
         hit_left || hit_right
     }
 
-    fn bounding_box(&self) -> AABB {
-        self.bbox.clone()
+    fn bounding_box(&self) -> Aabb {
+        self.bbox
     }
 }

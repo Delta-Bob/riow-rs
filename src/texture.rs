@@ -1,15 +1,14 @@
-use rand::rand_core::le;
-
-use crate::color::Color;
+use crate::color::{Color, srgb_to_linear};
 use crate::interval::Interval;
-use crate::vec3::{Point3, Vec3, reflect};
-use crate::rtw_stb_image::RtwImage;
 use crate::perlin::Perlin;
+use crate::rtw_image::RtwImage;
+use crate::vec3::{Point3, Vec3};
 
 pub trait Texture: Send + Sync {
     fn value(&self, u: f64, v: f64, p: Vec3) -> Color;
 }
 
+/// A single flat color.
 pub struct SolidColor {
     albedo: Color,
 }
@@ -17,10 +16,6 @@ pub struct SolidColor {
 impl SolidColor {
     pub fn new(color: Color) -> Self {
         Self { albedo: color }
-    }
-
-    pub fn from_rgb(r: f64, g: f64, b: f64) -> Self {
-        Self { albedo: Color::new(r, g, b) }
     }
 }
 
@@ -30,6 +25,7 @@ impl Texture for SolidColor {
     }
 }
 
+/// A 3D checker pattern built from two sub-textures.
 pub struct CheckerTexture {
     inv_scale: f64,
     even: Box<dyn Texture>,
@@ -37,11 +33,7 @@ pub struct CheckerTexture {
 }
 
 impl CheckerTexture {
-    pub fn new(scale: f64, even : Box<dyn Texture>, odd: Box<dyn Texture>) -> Self {
-        Self { inv_scale: 1.0 / scale, even, odd }
-    }
-
-    pub fn from_colors(scale: f64, c1: Color , c2: Color) -> Self {
+    pub fn from_colors(scale: f64, c1: Color, c2: Color) -> Self {
         Self {
             inv_scale: 1.0 / scale,
             even: Box::new(SolidColor::new(c1)),
@@ -62,24 +54,28 @@ impl Texture for CheckerTexture {
             self.even.value(u, v, p)
         } else {
             self.odd.value(u, v, p)
-        } 
+        }
     }
 }
 
+/// A texture loaded from an image file (via `RtwImage`). Image files are
+/// sRGB-encoded, so they are decoded to linear light here.
 pub struct ImageTexture {
     image: RtwImage,
 }
 
 impl ImageTexture {
     pub fn new(filename: &str) -> Self {
-        Self { image: RtwImage::load(filename) }
+        Self {
+            image: RtwImage::load(filename),
+        }
     }
 }
 
 impl Texture for ImageTexture {
     fn value(&self, u: f64, v: f64, _p: Vec3) -> Color {
         if self.image.height() <= 0 {
-            return Color::new(0.0, 1.0, 1.0)
+            return Color::new(0.0, 1.0, 1.0);
         }
 
         let u = Interval::new(0.0, 1.0).clamp(u);
@@ -89,13 +85,15 @@ impl Texture for ImageTexture {
         let j = (v * self.image.height() as f64) as i32;
         let pixel = self.image.pixel_data(i, j);
 
-        let color_scale = 1.0 / 255.0;
-        Color::new(color_scale * pixel[0] as f64,
-                   color_scale * pixel[1] as f64,
-                   color_scale * pixel[2] as f64)
+        Color::new(
+            srgb_to_linear(pixel[0] as f64 / 255.0),
+            srgb_to_linear(pixel[1] as f64 / 255.0),
+            srgb_to_linear(pixel[2] as f64 / 255.0),
+        )
     }
 }
 
+/// A marble-like pattern from fractal Perlin noise.
 pub struct NoiseTexture {
     noise: Perlin,
     scale: f64,
@@ -103,12 +101,16 @@ pub struct NoiseTexture {
 
 impl NoiseTexture {
     pub fn new(scale: f64) -> Self {
-        Self { noise: Perlin::new(), scale }
+        Self {
+            noise: Perlin::new(),
+            scale,
+        }
     }
 }
 
 impl Texture for NoiseTexture {
-    fn value(&self, u: f64, v: f64, p: Point3) -> Color {
-        Color::new(0.5, 0.5, 0.5) * (1.0 + f64::sin(self.scale * p.z() + 10.0 * self.noise.turb(p, 7)))
+    fn value(&self, _u: f64, _v: f64, p: Point3) -> Color {
+        Color::new(0.5, 0.5, 0.5)
+            * (1.0 + f64::sin(self.scale * p.z() + 10.0 * self.noise.turb(p, 7)))
     }
 }
