@@ -28,7 +28,7 @@ mod vec3;
 use std::time::Instant;
 
 /// Which demo scene to render (1-10). See `scenes.rs` for the full list.
-const SCENE: u8 = 10;
+const SCENE: u8 = 9;
 
 fn main() {
     // Seeds scene construction; each image row seeds itself during rendering.
@@ -45,8 +45,8 @@ fn main() {
         6 => scenes::triangles(),
         7 => scenes::simple_light(),
         8 => scenes::cornell_smoke(2400, 1000, 32),
-        9 => scenes::cornell_box(800, 500, 50),
-        10 => scenes::final_scene(1280, 500, 32),
+        9 => scenes::cornell_box(200, 500, 50),
+        10 => scenes::final_scene(320, 500, 32),
         _ => panic!("SCENE must be between 1 and 10 (got {SCENE})"),
     }
 

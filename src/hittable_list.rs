@@ -32,6 +32,12 @@ impl HittableList {
 
 impl Hittable for HittableList {
     fn hit<'a>(&'a self, ray: &Ray, ray_t: Interval, rec: &mut HitRecord<'a>) -> bool {
+        // The stored box bounds every child, so rays that miss it can skip
+        // the whole list.
+        if !self.bbox.hit(ray, ray_t) {
+            return false;
+        }
+
         let mut temp_rec = HitRecord::new();
         let mut hit_anything = false;
         let mut closest_so_far = ray_t.max;

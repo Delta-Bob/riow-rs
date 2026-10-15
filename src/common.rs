@@ -3,19 +3,19 @@
 use std::cell::RefCell;
 
 use rand::seq::SliceRandom;
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 
 /// Seed for reproducible renders. Scene construction and rendering both
 /// derive from it, so changing it gives a different noise pattern.
 pub const DEFAULT_SEED: u64 = 0x5EED;
 
 thread_local! {
-    static RNG: RefCell<StdRng> = RefCell::new(StdRng::seed_from_u64(DEFAULT_SEED));
+    static RNG: RefCell<SmallRng> = RefCell::new(SmallRng::seed_from_u64(DEFAULT_SEED));
 }
 
 /// Reseeds this thread's random number generator.
 pub fn set_seed(seed: u64) {
-    RNG.with(|rng| *rng.borrow_mut() = StdRng::seed_from_u64(seed));
+    RNG.with(|rng| *rng.borrow_mut() = SmallRng::seed_from_u64(seed));
 }
 
 /// Converts degrees to radians.

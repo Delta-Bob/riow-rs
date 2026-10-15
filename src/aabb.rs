@@ -1,9 +1,5 @@
 //! Axis-aligned bounding boxes.
 
-use std::cmp::Ordering;
-use std::sync::Arc;
-
-use crate::hittable::Hittable;
 use crate::interval::Interval;
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3};
@@ -75,6 +71,12 @@ impl Aabb {
     /// exactly on a slab boundary (`0 * inf = NaN`) from being rejected;
     /// `f64::max`/`min` ignore NaN, which keeps those axes unconstrained.
     pub fn hit(&self, r: &Ray, ray_t: Interval) -> bool {
+        self.intersect(r, ray_t.min, ray_t.max).is_some()
+    }
+
+    /// The distance along the ray at which it enters this box, if it crosses
+    /// the box within `[t_min, t_max]`.
+    pub fn intersect(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<f64> {
         let mut t_near = f64::NEG_INFINITY;
         let mut t_far = f64::INFINITY;
 
@@ -90,7 +92,28 @@ impl Aabb {
             t_far = t_far.min(hi);
         }
 
-        t_near <= ray_t.max && t_far >= ray_t.min
+        if t_near > t_max || t_far < t_min {
+            return None;
+        }
+
+        Some(t_near.max(t_min))
+    }
+
+    /// The center of the box.
+    pub fn centroid(&self) -> Point3 {
+        Point3::new(
+            self.x.min + self.x.size() / 2.0,
+            self.y.min + self.y.size() / 2.0,
+            self.z.min + self.z.size() / 2.0,
+        )
+    }
+
+    /// The area of the box surface, used by the surface-area heuristic.
+    pub fn surface_area(&self) -> f64 {
+        let x = self.x.size();
+        let y = self.y.size();
+        let z = self.z.size();
+        2.0 * (x * y + y * z + z * x)
     }
 
     /// The index (0, 1 or 2) of the longest axis of this box.
@@ -128,14 +151,4 @@ impl std::ops::Add<Vec3> for Aabb {
             self.z + offset.z(),
         )
     }
-}
-
-/// Orders two objects by the lower bound of their bounding box on `axis`.
-pub fn compare_by_axis(a: &Arc<dyn Hittable>, b: &Arc<dyn Hittable>, axis: usize) -> Ordering {
-    let a_interval = a.bounding_box().axis_interval(axis);
-    let b_interval = b.bounding_box().axis_interval(axis);
-    a_interval
-        .min
-        .partial_cmp(&b_interval.min)
-        .unwrap_or(Ordering::Equal)
 }

@@ -8,7 +8,7 @@ use crate::color::{Color, ToneMapping, linear_to_srgb};
 use crate::common::{self, degrees_to_radians, random_f64, random_f64_range};
 use crate::hittable::{HitRecord, Hittable};
 use crate::interval::Interval;
-use crate::material::Scatter;
+use crate::material::{SampledPdf, Scatter};
 use crate::pdf::{HittablePdf, Pdf};
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3, cross, random_in_unit_disk, unit_vector};
@@ -30,7 +30,7 @@ struct LightSampler<'a> {
     background: Option<BackgroundPdf<'a>>,
 }
 
-impl Pdf for LightSampler<'_> {
+impl LightSampler<'_> {
     fn value(&self, direction: &Vec3) -> f64 {
         match (&self.hittable, &self.background) {
             (Some(hittable), Some(background)) => {
@@ -314,15 +314,14 @@ impl Camera {
                 emission + self.ray_color(&specular_ray, depth - 1, world, lights, beta, 1.0)
             }
             Scatter::Sampled { pdf } => {
-                let material_pdf = pdf.as_ref();
+                let material_pdf = &pdf;
                 let sampler = self.light_sampler(lights, &rec, ray.time);
-                let light_pdf = sampler.as_ref().map(|sampler| sampler as &dyn Pdf);
 
                 // Direct lighting: sample the light strategy and add its
                 // contribution, weighted with the balance heuristic.
-                let direct = match light_pdf {
-                    Some(light_pdf) => {
-                        self.direct_light(light_pdf, material_pdf, &rec, ray, beta, world)
+                let direct = match &sampler {
+                    Some(sampler) => {
+                        self.direct_light(sampler, material_pdf, &rec, ray, beta, world)
                     }
                     None => Color::new(0.0, 0.0, 0.0),
                 };
@@ -340,7 +339,7 @@ impl Camera {
                 let scattered = Ray::new(rec.p, direction, ray.time);
                 let beta = beta * material.eval(ray, &rec, &scattered) / pdf_value;
 
-                let light_pdf_value = light_pdf.map_or(0.0, |pdf| pdf.value(&direction));
+                let light_pdf_value = sampler.as_ref().map_or(0.0, |s| s.value(&direction));
                 let weight = if light_pdf_value > 0.0 {
                     pdf_value / (pdf_value + light_pdf_value)
                 } else {
@@ -385,8 +384,8 @@ impl Camera {
     /// heuristic against the material's own density.
     fn direct_light(
         &self,
-        light_pdf: &dyn Pdf,
-        material_pdf: &dyn Pdf,
+        light_pdf: &LightSampler,
+        material_pdf: &SampledPdf,
         rec: &HitRecord,
         ray: &Ray,
         beta: Color,

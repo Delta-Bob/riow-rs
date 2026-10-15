@@ -13,7 +13,36 @@ pub enum Scatter {
     /// Delta BSDF: the outgoing ray is fully determined (mirror, glass).
     Specular { attenuation: Color, ray: Ray },
     /// Non-delta BSDF: the outgoing direction is drawn from `pdf`.
-    Sampled { pdf: Box<dyn Pdf> },
+    Sampled { pdf: SampledPdf },
+}
+
+/// The distribution a non-delta material samples its scattered directions
+/// from, stored inline so no allocation happens per bounce.
+pub enum SampledPdf {
+    Cosine(CosinePdf),
+    Ggx(GgxPdf),
+    HenyeyGreenstein(HenyeyGreensteinPdf),
+    Sphere(SpherePdf),
+}
+
+impl Pdf for SampledPdf {
+    fn value(&self, direction: &Vec3) -> f64 {
+        match self {
+            SampledPdf::Cosine(pdf) => pdf.value(direction),
+            SampledPdf::Ggx(pdf) => pdf.value(direction),
+            SampledPdf::HenyeyGreenstein(pdf) => pdf.value(direction),
+            SampledPdf::Sphere(pdf) => pdf.value(direction),
+        }
+    }
+
+    fn generate(&self) -> Vec3 {
+        match self {
+            SampledPdf::Cosine(pdf) => pdf.generate(),
+            SampledPdf::Ggx(pdf) => pdf.generate(),
+            SampledPdf::HenyeyGreenstein(pdf) => pdf.generate(),
+            SampledPdf::Sphere(pdf) => pdf.generate(),
+        }
+    }
 }
 
 pub trait Material: Send + Sync {
@@ -51,7 +80,7 @@ impl Lambertian {
 impl Material for Lambertian {
     fn scatter(&self, _r_in: &Ray, rec: &HitRecord) -> Option<Scatter> {
         Some(Scatter::Sampled {
-            pdf: Box::new(CosinePdf::new(&rec.normal)),
+            pdf: SampledPdf::Cosine(CosinePdf::new(&rec.normal)),
         })
     }
 
@@ -101,7 +130,7 @@ impl Material for Metal {
 
         let view = -unit_vector(r_in.direction);
         Some(Scatter::Sampled {
-            pdf: Box::new(GgxPdf::new(rec.normal, view, self.roughness)),
+            pdf: SampledPdf::Ggx(GgxPdf::new(rec.normal, view, self.roughness)),
         })
     }
 
@@ -208,7 +237,7 @@ impl Isotropic {
 impl Material for Isotropic {
     fn scatter(&self, _r_in: &Ray, _rec: &HitRecord) -> Option<Scatter> {
         Some(Scatter::Sampled {
-            pdf: Box::new(SpherePdf),
+            pdf: SampledPdf::Sphere(SpherePdf),
         })
     }
 
@@ -236,7 +265,7 @@ impl HenyeyGreenstein {
 impl Material for HenyeyGreenstein {
     fn scatter(&self, r_in: &Ray, _rec: &HitRecord) -> Option<Scatter> {
         Some(Scatter::Sampled {
-            pdf: Box::new(HenyeyGreensteinPdf::new(
+            pdf: SampledPdf::HenyeyGreenstein(HenyeyGreensteinPdf::new(
                 unit_vector(r_in.direction),
                 self.g,
             )),
